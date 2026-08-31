@@ -7,6 +7,6 @@ struct Disksleuth: AsyncParsableCommand {
         commandName: "disksleuth",
         abstract: "The disk analyzer that tells you the truth on APFS.",
         version: DiskSleuthVersion.string,
-        subcommands: [Info.self]
+        subcommands: [Scan.self, Top.self, Info.self]
     )
 }
