@@ -51,7 +51,9 @@ struct TreePrinter {
         let sizeText = fmt(size).padding(toLength: 11, withPad: " ", startingAt: 0)
 
         let indent = String(repeating: "  ", count: depth)
-        let name = isDir ? style.boldBlue(displayName + "/") : displayName
+        let name = isDir
+            ? style.boldBlue(displayName.hasSuffix("/") ? displayName : displayName + "/")
+            : displayName
         print("\(bar(size, rootSize: rootSize)) \(style.bold(sizeText))\(indent)\(name)\(Self.badges(for: flags, style: style))")
 
         guard isDir, depth < maxDepth else { return }

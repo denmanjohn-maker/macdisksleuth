@@ -34,6 +34,10 @@ public struct ScanProgress: Sendable {
     public var finished: Bool = false
 }
 
+extension ScanProgress {
+    public static let zero = ScanProgress()
+}
+
 public struct ScanResult: Sendable {
     public var graph: FileGraph
     public var volume: VolumeIdentity

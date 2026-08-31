@@ -1,0 +1,34 @@
+name: DiskSleuth
+options:
+  bundleIdPrefix: com.jdenman
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+packages:
+  macdisksleuth:
+    path: ..
+targets:
+  DiskSleuth:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+    dependencies:
+      - package: macdisksleuth
+        product: DiskSleuthKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jdenman.disksleuth
+        PRODUCT_NAME: DiskSleuth
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "6.0"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_APP_SANDBOX: NO
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSHumanReadableCopyright: "MIT License — github.com/denmanjohn-maker/macdisksleuth"
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        COMBINE_HIDPI_IMAGES: YES
+        DEAD_CODE_STRIPPING: YES

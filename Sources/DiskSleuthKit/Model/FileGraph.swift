@@ -117,16 +117,16 @@ public struct FileGraph: Sendable {
         }
     }
 
-    /// Children, sorted by physical size descending.
+    /// Children, sorted by physical size descending. Tombstoned entries
+    /// (deleted via `removing(_:)`) are skipped.
     public func children(of node: NodeID) -> [NodeID] {
         let i = Int(node.raw)
         let range = Int(childStart[i])..<Int(childStart[i + 1])
-        return childItems[range].map(NodeID.init(raw:))
+        return childItems[range].compactMap { $0 >= 0 ? NodeID(raw: $0) : nil }
     }
 
     public func childCount(of node: NodeID) -> Int {
-        let i = Int(node.raw)
-        return Int(childStart[i + 1] - childStart[i])
+        children(of: node).count
     }
 
     /// Absolute path of a node (root carries the full scan-root path).
