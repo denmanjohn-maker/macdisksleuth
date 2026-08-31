@@ -58,6 +58,7 @@ struct ResultsView: View {
 
 struct BreadcrumbBar: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.typography) private var type
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -73,7 +74,7 @@ struct BreadcrumbBar: View {
 
                 ForEach(Array(model.breadcrumbs.enumerated()), id: \.element) { _, node in
                     Image(systemName: "chevron.right")
-                        .font(.caption2)
+                        .font(type.caption2)
                         .foregroundStyle(.tertiary)
                     Button {
                         model.drill(to: node)
@@ -87,7 +88,7 @@ struct BreadcrumbBar: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
         }
-        .font(.callout)
+        .font(type.callout)
     }
 
     private var diskName: String {
@@ -158,16 +159,18 @@ struct TreeRowData: Identifiable {
 
 struct TreeRow: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.typography) private var type
     var row: TreeRowData
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: iconName)
                 .foregroundStyle(row.kind == .directory ? Color.accentColor : Color.secondary)
-                .frame(width: 18)
+                .font(type.body)
+                .frame(width: type.size(18))
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(row.name).lineLimit(1)
+                    Text(row.name).font(type.body).lineLimit(1)
                     badgeIcons
                 }
                 GeometryReader { proxy in
@@ -183,6 +186,7 @@ struct TreeRow: View {
             }
             Spacer()
             Text(ByteCount.format(row.bytes))
+                .font(type.body)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
         }
@@ -208,7 +212,7 @@ struct TreeRow: View {
             if row.flags.accessDenied { badge("⛔", "Unreadable — undercounted") }
             if row.flags.externalLinks { badge("✳", "Shares bytes with content elsewhere") }
         }
-        .font(.caption)
+        .font(type.caption)
         .foregroundStyle(.secondary)
     }
 
@@ -219,6 +223,7 @@ struct TreeRow: View {
 
 struct StatusBar: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.typography) private var type
 
     var body: some View {
         HStack(spacing: 14) {
@@ -245,7 +250,7 @@ struct StatusBar: View {
                 }
             }
         }
-        .font(.caption)
+        .font(type.caption)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(.bar)

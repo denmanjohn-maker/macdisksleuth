@@ -29,6 +29,31 @@ final class AppModel {
     /// enters the folder sunburst, and going up from the scan root returns here.
     var atOverview = true
 
+    /// User-set text scale, persisted. 1.0 = stock macOS sizes; the default
+    /// leans larger on purpose.
+    var textScale: Double = AppModel.loadTextScale() {
+        didSet {
+            let clamped = min(max(textScale, Self.minTextScale), Self.maxTextScale)
+            if clamped != textScale {
+                textScale = clamped
+                return
+            }
+            UserDefaults.standard.set(textScale, forKey: "textScale")
+        }
+    }
+
+    static let minTextScale = 0.8
+    static let maxTextScale = 2.0
+
+    private static func loadTextScale() -> Double {
+        let stored = UserDefaults.standard.object(forKey: "textScale") as? Double ?? 1.2
+        return min(max(stored, minTextScale), maxTextScale)
+    }
+
+    func increaseTextSize() { textScale += 0.1 }
+    func decreaseTextSize() { textScale -= 0.1 }
+    func resetTextSize() { textScale = 1.2 }
+
     // Sidebar facts, refreshed on launch and after scans.
     var fdaStatus: FDAStatus = .unknown
     var capacities: VolumeCapacities?

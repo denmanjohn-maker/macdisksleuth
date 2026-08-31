@@ -4,6 +4,7 @@ import SwiftUI
 struct SunburstView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.typography) private var type
 
     @State private var segments: [SunburstSegment] = []
     @State private var hoveredSegmentID: String?
@@ -176,11 +177,11 @@ struct SunburstView: View {
                     .foregroundStyle(.secondary)
                     .imageScale(.large)
                 Text(model.focus == graph.root ? lastComponent(graph.rootPath) : graph.name(of: model.focus))
-                    .font(.headline)
+                    .font(type.headline)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                 Text(ByteCount.format(graph.size(of: model.focus, lens: model.lens)))
-                    .font(.subheadline)
+                    .font(type.subheadline)
                     .foregroundStyle(.secondary)
             }
         }
@@ -193,7 +194,7 @@ struct SunburstView: View {
             Text(segment.name).fontWeight(.medium).lineLimit(1)
             Text(ByteCount.format(segment.bytes)).foregroundStyle(.secondary)
         }
-        .font(.callout)
+        .font(type.callout)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(.regularMaterial, in: Capsule())

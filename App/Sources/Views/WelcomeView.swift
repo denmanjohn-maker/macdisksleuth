@@ -3,6 +3,7 @@ import SwiftUI
 
 struct WelcomeView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.typography) private var type
 
     var body: some View {
         VStack(spacing: 24) {
@@ -10,10 +11,11 @@ struct WelcomeView: View {
 
             VStack(spacing: 6) {
                 Image(systemName: "internaldrive.fill")
-                    .font(.system(size: 44))
+                    .font(.system(size: type.size(44)))
                     .foregroundStyle(.tint)
-                Text("DiskSleuth").font(.largeTitle.bold())
+                Text("DiskSleuth").font(type.largeTitle.bold())
                 Text("The disk analyzer that tells you the truth on APFS.")
+                    .font(type.body)
                     .foregroundStyle(.secondary)
             }
 
@@ -49,7 +51,7 @@ struct WelcomeView: View {
             .controlSize(.large)
 
             if let error = model.scanError {
-                Text(error).foregroundStyle(.red).font(.callout)
+                Text(error).foregroundStyle(.red).font(type.callout)
             }
 
             Spacer()
@@ -61,11 +63,11 @@ struct WelcomeView: View {
     private var bootDiskCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Boot Disk").font(.headline)
+                Text("Boot Disk").font(type.headline)
                 Spacer()
                 if !model.snapshots.isEmpty {
                     Label("\(model.snapshots.count) local snapshots", systemImage: "clock.arrow.circlepath")
-                        .font(.caption)
+                        .font(type.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -84,7 +86,7 @@ struct WelcomeView: View {
                     Text("Finder sees \(ByteCount.format(cap.availableForImportantUsage)) available")
                         .foregroundStyle(.secondary)
                 }
-                .font(.caption)
+                .font(type.caption)
             }
         }
         .padding(16)
@@ -104,9 +106,9 @@ struct WelcomeView: View {
             Image(systemName: "lock.shield")
                 .foregroundStyle(.yellow)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Full Disk Access not granted").fontWeight(.semibold)
+                Text("Full Disk Access not granted").font(type.body).fontWeight(.semibold)
                 Text("Protected folders (Mail, Messages, Photos…) will be skipped and honestly reported as unreadable.")
-                    .font(.caption)
+                    .font(type.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -149,6 +151,7 @@ struct CapacityBar: View {
 
 struct ScanProgressView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.typography) private var type
 
     var body: some View {
         VStack(spacing: 18) {
@@ -156,16 +159,16 @@ struct ScanProgressView: View {
             ProgressView()
                 .controlSize(.large)
             Text("\(model.progress.filesSeen.formatted()) files · \(ByteCount.format(model.progress.physicalBytes)) physical")
-                .font(.title3.monospacedDigit())
+                .font(type.title3.monospacedDigit())
             Text(model.progress.currentPath)
-                .font(.caption)
+                .font(type.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(maxWidth: 520)
             if model.progress.deniedCount > 0 {
                 Text("\(model.progress.deniedCount) folders unreadable so far")
-                    .font(.caption)
+                    .font(type.caption)
                     .foregroundStyle(.orange)
             }
             Button("Cancel") { model.cancelScan() }

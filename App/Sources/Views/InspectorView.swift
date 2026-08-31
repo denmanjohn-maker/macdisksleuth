@@ -3,6 +3,7 @@ import SwiftUI
 
 struct InspectorView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.typography) private var type
     @State private var confirmingDelete = false
     @State private var deleteError: String?
 
@@ -16,6 +17,7 @@ struct InspectorView: View {
                 details(graph: graph, node: node)
             } else {
                 Text("Select an item")
+                    .font(type.body)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -35,11 +37,11 @@ struct InspectorView: View {
                         Image(systemName: flags.kind == .directory ? "folder.fill" : "doc.fill")
                             .foregroundStyle(flags.kind == .directory ? Color.accentColor : .secondary)
                         Text(isRoot ? lastComponent(graph.rootPath) : graph.name(of: node))
-                            .font(.headline)
+                            .font(type.headline)
                             .lineLimit(2)
                     }
                     Text(graph.path(of: node))
-                        .font(.caption)
+                        .font(type.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(3)
                         .truncationMode(.middle)
@@ -54,7 +56,7 @@ struct InspectorView: View {
                     Divider()
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(badgeLines(flags: flags, graph: graph, node: node), id: \.self) {
-                            Text($0).font(.caption)
+                            Text($0).font(type.caption)
                         }
                     }
                 }
@@ -65,7 +67,7 @@ struct InspectorView: View {
 
                 if !model.snapshots.isEmpty {
                     Text("◷ \(model.snapshots.count) local snapshots exist — freed space may appear gradually as they thin.")
-                        .font(.caption2)
+                        .font(type.caption2)
                         .foregroundStyle(.secondary)
                 }
 
@@ -82,7 +84,7 @@ struct InspectorView: View {
                 .controlSize(.small)
 
                 if let deleteError {
-                    Text(deleteError).font(.caption).foregroundStyle(.red)
+                    Text(deleteError).font(type.caption).foregroundStyle(.red)
                 }
             }
             .padding(14)
@@ -116,17 +118,17 @@ struct InspectorView: View {
                 Text(ByteCount.format(sizes.unique)).monospacedDigit().foregroundStyle(.green)
             }
         }
-        .font(.callout)
+        .font(type.callout)
     }
 
     private func freeableHeadline(sizes: Sizes, flags: NodeFlags) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text("Deleting frees ~\(ByteCount.format(sizes.unique)) now")
-                .font(.callout.bold())
+                .font(type.callout.bold())
                 .foregroundStyle(sizes.unique > 0 ? Color.green : Color.secondary)
             if sizes.unique < sizes.physical {
                 Text("\(ByteCount.format(sizes.physical - sizes.unique)) is shared with clones or hard links elsewhere.")
-                    .font(.caption2)
+                    .font(type.caption2)
                     .foregroundStyle(.secondary)
             }
         }
