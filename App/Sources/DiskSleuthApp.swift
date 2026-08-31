@@ -19,6 +19,18 @@ struct DiskSleuthApp: App {
                     .keyboardShortcut("r")
                     .disabled(model.graph == nil)
             }
+            CommandGroup(after: .sidebar) {
+                Divider()
+                Button("Enclosing Folder") { model.up() }
+                    .keyboardShortcut(.upArrow, modifiers: .command)
+                    .disabled(!model.canGoUp)
+                Button("Open Selection") { model.drillIntoSelection() }
+                    .keyboardShortcut(.downArrow, modifiers: .command)
+                    .disabled(model.selection == nil)
+                Button("Disk Overview") { model.goToOverview() }
+                    .keyboardShortcut(.upArrow, modifiers: [.command, .shift])
+                    .disabled(model.graph == nil || model.atOverview)
+            }
         }
     }
 }

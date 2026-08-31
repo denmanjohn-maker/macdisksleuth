@@ -40,7 +40,10 @@ GUI app:
 ```sh
 brew install xcodegen   # once
 make app                # builds App/DiskSleuth.xcodeproj → DiskSleuth.app
+make xcode              # or: generate the project and open it in Xcode
 ```
+
+> **Building in Xcode?** The `.xcodeproj` is generated, not checked in — run `make xcode` (or `make generate`) first, then build the **DiskSleuth** scheme in `App/DiskSleuth.xcodeproj`. Opening `Package.swift` at the repo root only gives you the CLI and library targets; the app won't appear there. If command-line builds complain that `xcodebuild` requires Xcode, point developer tools at the full Xcode once: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
 
 Homebrew formula/cask: coming soon.
 

@@ -172,11 +172,9 @@ struct SunburstView: View {
     private func centerLabel(radius: CGFloat) -> some View {
         VStack(spacing: 2) {
             if let graph = model.graph {
-                if model.focus != graph.root {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .foregroundStyle(.secondary)
-                        .imageScale(.large)
-                }
+                Image(systemName: "arrow.up.circle.fill")
+                    .foregroundStyle(.secondary)
+                    .imageScale(.large)
                 Text(model.focus == graph.root ? lastComponent(graph.rootPath) : graph.name(of: model.focus))
                     .font(.headline)
                     .lineLimit(2)

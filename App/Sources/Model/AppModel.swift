@@ -25,6 +25,9 @@ final class AppModel {
     var focus = NodeID(raw: 0)
     var selection: NodeID?
     var hovered: NodeID?
+    /// Results open on the volume-level view (total vs used); drilling in
+    /// enters the folder sunburst, and going up from the scan root returns here.
+    var atOverview = true
 
     // Sidebar facts, refreshed on launch and after scans.
     var fdaStatus: FDAStatus = .unknown
@@ -114,6 +117,7 @@ final class AppModel {
                 self.volume = result.volume
                 self.focus = result.graph.root
                 self.selection = nil
+                self.atOverview = true
                 self.graphStamp += 1
                 self.phase = .results
                 self.refreshFacts()
@@ -142,14 +146,42 @@ final class AppModel {
             selection = node
             return
         }
+        atOverview = false
         focus = node
         selection = node
     }
 
+    /// Leave the volume overview and enter the scanned folder's sunburst.
+    func drillIntoScan() {
+        guard let graph else { return }
+        atOverview = false
+        focus = graph.root
+        selection = nil
+    }
+
+    func goToOverview() {
+        atOverview = true
+        selection = nil
+        hovered = nil
+    }
+
     func up() {
-        guard let graph, let parent = graph.parent(of: focus) else { return }
+        guard let graph, !atOverview else { return }
+        guard let parent = graph.parent(of: focus) else {
+            goToOverview()
+            return
+        }
         focus = parent
         selection = focus
+    }
+
+    var canGoUp: Bool {
+        graph != nil && !atOverview
+    }
+
+    func drillIntoSelection() {
+        guard let selection else { return }
+        drill(to: selection)
     }
 
     /// Root-to-focus path for the breadcrumb bar.

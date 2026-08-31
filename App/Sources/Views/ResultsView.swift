@@ -6,20 +6,26 @@ struct ResultsView: View {
 
     var body: some View {
         @Bindable var model = model
-        HSplitView {
-            SunburstView()
-                .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
-                .layoutPriority(1)
+        Group {
+            if model.atOverview {
+                DiskOverviewView()
+            } else {
+                HSplitView {
+                    SunburstView()
+                        .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
+                        .layoutPriority(1)
 
-            VStack(spacing: 0) {
-                BreadcrumbBar()
-                Divider()
-                TreeListView()
+                    VStack(spacing: 0) {
+                        BreadcrumbBar()
+                        Divider()
+                        TreeListView()
+                    }
+                    .frame(minWidth: 320, maxWidth: .infinity)
+
+                    InspectorView()
+                        .frame(minWidth: 260, maxWidth: 320)
+                }
             }
-            .frame(minWidth: 320, maxWidth: .infinity)
-
-            InspectorView()
-                .frame(minWidth: 260, maxWidth: 320)
         }
         .toolbar {
             ToolbarItemGroup {
@@ -28,8 +34,8 @@ struct ResultsView: View {
                 } label: {
                     Label("Up", systemImage: "arrow.up")
                 }
-                .disabled(model.graph.map { model.focus == $0.root } ?? true)
-                .help("Go to enclosing folder")
+                .disabled(!model.canGoUp)
+                .help("Go up — to the enclosing folder, or from the top folder back to the disk view (⌘↑)")
 
                 Picker("Lens", selection: $model.lens) {
                     Text("Logical").tag(SizeLens.logical)
@@ -56,12 +62,19 @@ struct BreadcrumbBar: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 2) {
-                ForEach(Array(model.breadcrumbs.enumerated()), id: \.element) { index, node in
-                    if index > 0 {
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
+                Button {
+                    model.goToOverview()
+                } label: {
+                    Label(diskName, systemImage: "internaldrive")
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.plain)
+                .help("Back to the disk view")
+
+                ForEach(Array(model.breadcrumbs.enumerated()), id: \.element) { _, node in
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                     Button {
                         model.drill(to: node)
                     } label: {
@@ -75,6 +88,10 @@ struct BreadcrumbBar: View {
             .padding(.vertical, 6)
         }
         .font(.callout)
+    }
+
+    private var diskName: String {
+        lastComponent(model.volume?.mountPoint ?? "/")
     }
 
     private func crumbName(_ node: NodeID) -> String {
