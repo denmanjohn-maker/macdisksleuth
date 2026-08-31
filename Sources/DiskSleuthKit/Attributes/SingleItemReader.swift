@@ -49,7 +49,7 @@ public enum SingleItemReader {
         var status = stat()
         var device: UInt64 = 0
         if lstat(path, &status) == 0 {
-            device = UInt64(status.st_dev)
+            device = deviceID(status.st_dev)
             // Directories don't return the file group; synthesize sizes for
             // symlinks/specials that a filesystem might short-change.
             if entry.physical < 0 && !entry.isDirectory {

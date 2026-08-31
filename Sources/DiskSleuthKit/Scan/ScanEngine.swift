@@ -59,13 +59,13 @@ public enum ScanEngine {
                 mountPoint: "/", fsTypeName: "unknown", deviceName: "", isReadOnly: false,
                 usedBytes: 0, totalBytes: 0)
 
-        var allowedDevices: Set<UInt64> = [UInt64(rootStat.st_dev)]
+        var allowedDevices: Set<UInt64> = [deviceID(rootStat.st_dev)]
         let isRootScan = canonical == "/"
         var firmlinkTargets: Set<String> = []
         if isRootScan {
             var dataStat = stat()
             if stat("/System/Volumes/Data", &dataStat) == 0 {
-                allowedDevices.insert(UInt64(dataStat.st_dev))
+                allowedDevices.insert(deviceID(dataStat.st_dev))
             }
             firmlinkTargets = Firmlinks.targetsRelativeToDataVolume()
         }
@@ -154,7 +154,7 @@ public enum ScanEngine {
             await context.builder.dirFinished(path: work.path)
             return
         }
-        let device = UInt64(status.st_dev)
+        let device = deviceID(status.st_dev)
 
         guard context.allowedDevices.contains(device) || context.options.crossVolumes else {
             close(fd)

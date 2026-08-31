@@ -1,6 +1,14 @@
 import Darwin
 import Foundation
 
+/// `dev_t` is a signed Int32, and synthetic filesystems (devfs, autofs, …)
+/// hand out IDs with the high bit set — negative as Int32. Reinterpret the
+/// bits instead of converting, which traps on those values.
+@inline(__always)
+func deviceID(_ dev: dev_t) -> UInt64 {
+    UInt64(UInt32(bitPattern: dev))
+}
+
 public struct ScanOptions: Sendable {
     /// Max directories being read concurrently.
     public var maxConcurrency: Int
