@@ -9,6 +9,8 @@ struct TreePrinter {
     var binaryUnits: Bool
     var maxDepth: Int
     var topPerLevel: Int
+    /// Children failing this filter fold into the "… N more" line.
+    var shown = NodeFilter()
 
     private func fmt(_ bytes: Int64) -> String {
         ByteCount.format(bytes, binary: binaryUnits)
@@ -63,13 +65,13 @@ struct TreePrinter {
             ? children
             : children.sorted { graph.size(of: $0, lens: lens) > graph.size(of: $1, lens: lens) }
 
-        var shown = 0
+        var listed = 0
         var restCount = 0
         var restBytes: Int64 = 0
         for child in ranked {
-            if shown < topPerLevel {
+            if listed < topPerLevel && self.shown.matches(child, in: graph) {
                 printNode(child, depth: depth + 1, rootSize: rootSize)
-                shown += 1
+                listed += 1
             } else {
                 restCount += 1
                 restBytes += graph.size(of: child, lens: lens)

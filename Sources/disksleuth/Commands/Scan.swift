@@ -5,7 +5,17 @@ import Foundation
 
 struct Scan: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Scan a folder or volume and show where the space really went."
+        abstract: "Scan a folder or volume and show where the space really went.",
+        discussion: """
+            --min-size and --exclude only tidy the display: hidden items are folded into
+            each folder's "… N more" line, so every total stays the true total.
+            For filtered rankings (extensions, clones, sorting), use `disksleuth top`.
+
+            Examples:
+              disksleuth scan ~ --depth 3 --top 15
+              disksleuth scan ~ --size-mode freeable --min-size 1GB
+              disksleuth scan / --exclude 'Library' --exclude '.*'
+            """
     )
 
     @Argument(help: "Directory to scan (default: current directory).")
@@ -19,6 +29,12 @@ struct Scan: AsyncParsableCommand {
 
     @Option(name: .customLong("size-mode"), help: "Lens: logical, physical, or unique (freeable).")
     var sizeMode: SizeLens = .physical
+
+    @Option(name: .customLong("min-size"), help: "Fold items smaller than this (e.g. 500MB) into \"… N more\".")
+    var minSize: SizeArgument?
+
+    @Option(name: .customLong("exclude"), help: "Fold items matching this glob into \"… N more\" (repeatable; a pattern with / matches the full path).")
+    var excludeGlobs: [String] = []
 
     @Flag(name: .customLong("one-file-system"), inversion: .prefixedNo, help: "Stay on the starting volume (default: on; the system↔Data pair counts as one).")
     var oneFileSystem = true
@@ -62,6 +78,15 @@ struct Scan: AsyncParsableCommand {
         }
     }
 
+    /// Which children are listed individually; the rest fold into "… N more".
+    private var displayFilter: NodeFilter {
+        var filter = NodeFilter()
+        filter.lens = sizeMode
+        filter.minSize = minSize?.bytes
+        filter.excludeGlobs = excludeGlobs
+        return filter
+    }
+
     private func fmt(_ bytes: Int64) -> String {
         ByteCount.format(bytes, binary: binaryUnits)
     }
@@ -91,7 +116,7 @@ struct Scan: AsyncParsableCommand {
 
         TreePrinter(
             graph: graph, lens: sizeMode, style: style, binaryUnits: binaryUnits,
-            maxDepth: depth, topPerLevel: top
+            maxDepth: depth, topPerLevel: top, shown: displayFilter
         ).printTree()
 
         if summary.deniedDirectoryCount > 0 {
@@ -164,14 +189,14 @@ struct Scan: AsyncParsableCommand {
             localSnapshots: snapshotCount,
             partial: summary.partial,
             wallSeconds: summary.wallSeconds,
-            tree: jsonNode(graph: graph, node: graph.root, depth: 0)
+            tree: jsonNode(graph: graph, node: graph.root, depth: 0, shown: displayFilter)
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         print(String(decoding: try encoder.encode(payload), as: UTF8.self))
     }
 
-    private func jsonNode(graph: FileGraph, node: NodeID, depth: Int) -> JSONNode {
+    private func jsonNode(graph: FileGraph, node: NodeID, depth: Int, shown: NodeFilter) -> JSONNode {
         let sizes = graph.sizes(of: node)
         let flags = graph.flags(of: node)
         var badges: [String] = []
@@ -190,9 +215,11 @@ struct Scan: AsyncParsableCommand {
         var collapsed: Int?
         if flags.kind == .directory && depth < self.depth {
             let all = graph.children(of: node)
-            let ranked = all.sorted { graph.size(of: $0, lens: sizeMode) > graph.size(of: $1, lens: sizeMode) }
-            children = ranked.prefix(top).map { jsonNode(graph: graph, node: $0, depth: depth + 1) }
-            if all.count > top { collapsed = all.count - top }
+            let visible = all.filter { shown.matches($0, in: graph) }
+            let ranked = graph.sorted(visible, by: NodeSort(keys: [NodeSort.Key(lens: sizeMode)]))
+            children = ranked.prefix(top).map { jsonNode(graph: graph, node: $0, depth: depth + 1, shown: shown) }
+            let hidden = all.count - min(ranked.count, top)
+            if hidden > 0 { collapsed = hidden }
         }
 
         return JSONNode(
@@ -205,16 +232,5 @@ struct Scan: AsyncParsableCommand {
             children: children,
             collapsedChildren: collapsed
         )
-    }
-}
-
-extension SizeLens: ExpressibleByArgument {
-    public init?(argument: String) {
-        switch argument.lowercased() {
-        case "logical", "l": self = .logical
-        case "physical", "p": self = .physical
-        case "unique", "freeable", "u", "f": self = .unique
-        default: return nil
-        }
     }
 }
