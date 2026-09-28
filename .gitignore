@@ -7,3 +7,4 @@ DerivedData/
 .netrc
 # XcodeGen output — regenerate with `make generate`
 App/DiskSleuth.xcodeproj
+App/DiskSleuth-Info.plist

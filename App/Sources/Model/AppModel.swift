@@ -6,6 +6,10 @@ import SwiftUI
 @MainActor
 @Observable
 final class AppModel {
+    /// The one model, shared by the SwiftUI scene and the Services provider
+    /// (a Finder Quick Action can arrive before any view exists).
+    static let shared = AppModel()
+
     enum Phase {
         case welcome
         case scanning
