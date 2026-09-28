@@ -5,21 +5,21 @@ import Testing
 
 @Suite("Size parsing")
 struct SizeParsingTests {
-    @Test(
-        "Human sizes parse with decimal and binary units",
-        arguments: [
-            ("123", Int64(123)),
-            ("0", 0),
-            ("4k", 4_000),
-            ("4K", 4_000),
-            ("100MB", 100_000_000),
-            ("100 mb", 100_000_000),
-            ("1.5GB", 1_500_000_000),
-            ("2GiB", 2 * 1024 * 1024 * 1024),
-            ("1Ki", 1024),
-            ("512b", 512),
-            ("1TB", 1_000_000_000_000),
-        ])
+    static let validSizes: [(String, Int64)] = [
+        ("123", 123),
+        ("0", 0),
+        ("4k", 4_000),
+        ("4K", 4_000),
+        ("100MB", 100_000_000),
+        ("100 mb", 100_000_000),
+        ("1.5GB", 1_500_000_000),
+        ("2GiB", 2 * 1024 * 1024 * 1024),
+        ("1Ki", 1024),
+        ("512b", 512),
+        ("1TB", 1_000_000_000_000),
+    ]
+
+    @Test("Human sizes parse with decimal and binary units", arguments: validSizes)
     func parses(text: String, expected: Int64) {
         #expect(ByteCount.parse(text) == expected)
     }
