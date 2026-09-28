@@ -62,6 +62,18 @@ disksleuth overview                   # capacity, purgeable space, local snapsho
 disksleuth snapshots                  # what Time Machine is still holding
 ```
 
+Filter and sort the rankings:
+
+```sh
+disksleuth top ~ --ext mov,mp4 --min-size 500MB              # big videos only
+disksleuth top ~ --only clone --sort freeable,logical         # clones: what deleting really frees
+disksleuth top ~/Library --include '*cache*' --exclude '.DS_Store'
+disksleuth top ~ --dirs --min-percent 2 --reverse             # folders ≥ 2% of the total, smallest first
+disksleuth scan ~ --min-size 1GB                              # fold small items; totals stay true
+```
+
+`top` filters: `--min-size`/`--max-size` (e.g. `100MB`, `1.5GiB`), `--min-percent`, `--ext`/`--exclude-ext`, `--include`/`--exclude` (globs; a pattern with `/` matches the full path), and `--only clone,hardlink,sparse,dataless,compressed,shared-outside`. Sort with `--sort` (`logical`, `physical`, `freeable`, `name`, `path` — comma-separated for tiebreaks) and `--reverse`. See `disksleuth top --help`.
+
 > **Tip:** grant your terminal Full Disk Access (System Settings → Privacy & Security) for complete results. DiskSleuth records every folder it couldn't read and says so, rather than silently under-counting.
 
 ## How the accounting works
