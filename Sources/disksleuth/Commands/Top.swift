@@ -77,6 +77,9 @@ struct Top: AsyncParsableCommand {
         if let minSize, let maxSize, minSize.bytes > maxSize.bytes {
             throw ValidationError("--min-size is larger than --max-size.")
         }
+        if let minPercent, !(0...100).contains(minPercent) {
+            throw ValidationError("--min-percent must be between 0 and 100.")
+        }
         if number < 0 { throw ValidationError("--number must be 0 or more.") }
     }
 

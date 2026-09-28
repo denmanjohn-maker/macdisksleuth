@@ -38,6 +38,9 @@ struct SortKeyParsingTests {
         #expect(NodeSort.parseKeys("unique, Name") == [.freeable, .name])
         #expect(NodeSort.parseKeys("size") == nil)
         #expect(NodeSort.parseKeys("") == nil)
+        #expect(NodeSort.parseKeys("logical,") == nil)
+        #expect(NodeSort.parseKeys(",logical") == nil)
+        #expect(NodeSort.parseKeys("logical,,name") == nil)
     }
 
     @Test("File extensions ignore leading-dot hidden names")

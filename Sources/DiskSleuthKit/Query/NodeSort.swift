@@ -39,7 +39,8 @@ public struct NodeSort: Sendable {
     /// Parses "freeable,logical" (also accepts the lens aliases "unique"/"u"
     /// and single-letter forms). Returns nil on an unknown or empty key.
     public static func parseKeys(_ text: String) -> [Key]? {
-        let parts = text.split(separator: ",").map {
+        // Keep empty pieces so "logical," or ",logical" is rejected, not normalized.
+        let parts = text.split(separator: ",", omittingEmptySubsequences: false).map {
             $0.trimmingCharacters(in: .whitespaces).lowercased()
         }
         guard !parts.isEmpty else { return nil }
