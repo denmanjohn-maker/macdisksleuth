@@ -45,6 +45,12 @@ make xcode              # or: generate the project and open it in Xcode
 
 > **Building in Xcode?** The `.xcodeproj` is generated, not checked in — run `make xcode` (or `make generate`) first, then build the **DiskSleuth** scheme in `App/DiskSleuth.xcodeproj`. Opening `Package.swift` at the repo root only gives you the CLI and library targets; the app won't appear there. If command-line builds complain that `xcodebuild` requires Xcode, point developer tools at the full Xcode once: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
 
+**Finder Quick Action.** DiskSleuth.app adds **Analyze with DiskSleuth** to Finder: right-click a folder or volume, then choose **Quick Actions**, or **Services** on older layouts. The app opens and scans that folder. To enable it:
+
+1. Copy `DiskSleuth.app` to `/Applications` and launch it once so macOS registers the service.
+2. If the item doesn't appear, turn it on in **System Settings → Keyboard → Keyboard Shortcuts… → Services → Files and Folders**.
+3. Still missing? Refresh the services cache: `/System/Library/CoreServices/pbs -update`, then relaunch Finder (⌥-right-click the Dock icon → Relaunch).
+
 Homebrew formula/cask: coming soon.
 
 ## Quick tour

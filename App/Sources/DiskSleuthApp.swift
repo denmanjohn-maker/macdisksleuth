@@ -2,7 +2,8 @@ import SwiftUI
 
 @main
 struct DiskSleuthApp: App {
-    @State private var model = AppModel()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @State private var model = AppModel.shared
 
     var body: some Scene {
         WindowGroup {
