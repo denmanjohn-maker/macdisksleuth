@@ -1,0 +1,138 @@
+import Foundation
+
+/// Persistent storage for scan history and scheduled scans.
+/// Uses a simple JSON-based file store in the user's home directory.
+final class ScanStore {
+    private let homeDir: URL
+
+    init() {
+        let home = URL(fileURLWithPath: NSHomeDirectory())
+        self.homeDir = home
+    }
+
+    private var dataDir: URL {
+        let dir = homeDir.appendingPathComponent(".disksleuth")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    private var scansFile: URL {
+        dataDir.appendingPathComponent("scans.json")
+    }
+
+    private var schedulesFile: URL {
+        dataDir.appendingPathComponent("schedules.json")
+    }
+
+    // MARK: - Scan History
+
+    /// Store scan results for history and diff operations.
+    func storeScanResult(_ result: ScanResult, options: ScanOptions) throws -> ScanRecord {
+        let record = ScanRecord(
+            id: UUID().uuidString,
+            path: result.graph.rootPath,
+            timestamp: Date().timeIntervalSince1970,
+            options: options
+        )
+
+        var records = try loadScanRecords()
+        records.append(record)
+        records.sort { $0.timestamp > $1.timestamp }
+
+        try saveScanRecords(records)
+        return record
+    }
+
+    /// Load all stored scan records.
+    func loadScanRecords() throws -> [ScanRecord] {
+        guard FileManager.default.fileExists(atPath: scansFile.path) else {
+            return []
+        }
+        let data = try Data(contentsOf: scansFile)
+        return try JSONDecoder().decode([ScanRecord].self, from: data)
+    }
+
+    /// Load a specific scan record by ID.
+    func loadScanRecord(id: String) throws -> ScanRecord? {
+        let records = try loadScanRecords()
+        return records.first(where: { $0.id == id })
+    }
+
+    /// Get the most recent scan record.
+    func loadLatestScan() throws -> ScanRecord? {
+        let records = try loadScanRecords()
+        return records.first
+    }
+
+    /// Get the last N scan records.
+    func loadRecentScans(count: Int = 10) throws -> [ScanRecord] {
+        let records = try loadScanRecords()
+        return Array(records.prefix(count))
+    }
+
+    // MARK: - Schedules
+
+    /// Create a new scan schedule.
+    func createSchedule(_ schedule: ScanSchedule) throws -> ScanSchedule {
+        var schedules = try loadSchedules()
+        schedules.append(schedule)
+        try saveSchedules(schedules)
+        return schedule
+    }
+
+    /// Load all scheduled scans.
+    func loadSchedules() throws -> [ScanSchedule] {
+        guard FileManager.default.fileExists(atPath: schedulesFile.path) else {
+            return []
+        }
+        let data = try Data(contentsOf: schedulesFile)
+        return try JSONDecoder().decode([ScanSchedule].self, from: data)
+    }
+
+    /// Update a schedule's next run time.
+    func updateScheduleNextRun(_ schedule: ScanSchedule) throws {
+        var schedules = try loadSchedules()
+        if let index = schedules.firstIndex(where: { $0.id == schedule.id }) {
+            schedules[index] = schedule
+            try saveSchedules(schedules)
+        }
+    }
+
+    /// Remove a schedule by ID.
+    func removeSchedule(id: String) throws {
+        var schedules = try loadSchedules()
+        schedules.removeAll { $0.id == id }
+        try saveSchedules(schedules)
+    }
+
+    private func saveScanRecords(_ records: [ScanRecord]) throws {
+        let data = try JSONEncoder().encode(records)
+        try data.write(to: scansFile, options: [.atomic, .completeFileIntegrity])
+    }
+
+    private func saveSchedules(_ schedules: [ScanSchedule]) throws {
+        let data = try JSONEncoder().encode(schedules)
+        try data.write(to: schedulesFile, options: [.atomic, .completeFileIntegrity])
+    }
+}
+
+// MARK: - ScanRecord
+
+struct ScanRecord: Codable, Sendable {
+    let id: String
+    let path: String
+    let timestamp: TimeInterval
+    let options: ScanOptions
+}
+
+// MARK: - ScanSchedule
+
+struct ScanSchedule: Codable, Sendable {
+    let id: String
+    let name: String
+    let path: String
+    let interval: TimeInterval // in seconds
+    let createdAt: TimeInterval
+    let nextRun: TimeInterval?
+    let lastRun: TimeInterval?
+}
