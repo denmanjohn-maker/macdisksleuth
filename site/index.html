@@ -84,7 +84,7 @@ disksleuth top ~ --only clone --sort freeable,logical</code></pre>
 cd macdisksleuth
 swift build -c release
 .build/release/disksleuth --help</code></pre>
-<p>Release builds are not notarized yet: right-click the app and choose Open the first time.</p>
+<p>Release builds are not notarized yet. Try to open the app once; if macOS blocks it, go to System Settings → Privacy &amp; Security and click <strong>Open Anyway</strong>. Or clear the quarantine flag from Terminal: <code>xattr -dr com.apple.quarantine DiskSleuth.app</code>.</p>
 
 <footer>
   MIT licensed. <a href="https://github.com/denmanjohn-maker/macdisksleuth/blob/main/docs/truth-engine.md">How the accounting works</a>

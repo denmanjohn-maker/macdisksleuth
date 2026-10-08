@@ -50,7 +50,7 @@ jobs:
           flags=(--generate-notes --verify-tag)
           case "$GITHUB_REF_NAME" in *-*) flags+=(--prerelease);; esac
           cat > notes.md <<'NOTES'
-          > **Not notarized.** The app is ad-hoc signed. After unzipping, right-click → Open the first time, or run `xattr -dr com.apple.quarantine DiskSleuth.app`. The CLI tarball likewise: `xattr -d com.apple.quarantine disksleuth`.
+          > **Not notarized.** The app is ad-hoc signed. After unzipping, try to open the app once; if macOS blocks it, use System Settings → Privacy & Security → Open Anyway, or run `xattr -dr com.apple.quarantine DiskSleuth.app`. The CLI tarball likewise: `xattr -d com.apple.quarantine disksleuth`.
           > Requires macOS 14+. Verify downloads against `SHA256SUMS`.
           NOTES
           gh release create "$GITHUB_REF_NAME" dist/* \
