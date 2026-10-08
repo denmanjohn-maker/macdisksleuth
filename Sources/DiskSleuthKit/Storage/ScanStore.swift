@@ -2,10 +2,10 @@ import Foundation
 
 /// Persistent storage for scan history and scheduled scans.
 /// Uses a simple JSON-based file store in the user's home directory.
-final class ScanStore {
+public final class ScanStore {
     private let homeDir: URL
 
-    init() {
+    public init() {
         let home = URL(fileURLWithPath: NSHomeDirectory())
         self.homeDir = home
     }
@@ -73,7 +73,7 @@ final class ScanStore {
     // MARK: - Schedules
 
     /// Create a new scan schedule.
-    func createSchedule(_ schedule: ScanSchedule) throws -> ScanSchedule {
+    public func createSchedule(_ schedule: ScanSchedule) throws -> ScanSchedule {
         var schedules = try loadSchedules()
         schedules.append(schedule)
         try saveSchedules(schedules)
@@ -107,12 +107,12 @@ final class ScanStore {
 
     private func saveScanRecords(_ records: [ScanRecord]) throws {
         let data = try JSONEncoder().encode(records)
-        try data.write(to: scansFile, options: [.atomic, .completeFileIntegrity])
+        try data.write(to: scansFile, options: [.atomic])
     }
 
     private func saveSchedules(_ schedules: [ScanSchedule]) throws {
         let data = try JSONEncoder().encode(schedules)
-        try data.write(to: schedulesFile, options: [.atomic, .completeFileIntegrity])
+        try data.write(to: schedulesFile, options: [.atomic])
     }
 }
 
@@ -127,12 +127,25 @@ struct ScanRecord: Codable, Sendable {
 
 // MARK: - ScanSchedule
 
-struct ScanSchedule: Codable, Sendable {
-    let id: String
-    let name: String
-    let path: String
-    let interval: TimeInterval // in seconds
-    let createdAt: TimeInterval
-    let nextRun: TimeInterval?
-    let lastRun: TimeInterval?
+public struct ScanSchedule: Codable, Sendable {
+    public let id: String
+    public let name: String
+    public let path: String
+    public let interval: TimeInterval // in seconds
+    public let createdAt: TimeInterval
+    public let nextRun: TimeInterval?
+    public let lastRun: TimeInterval?
+
+    public init(
+        id: String, name: String, path: String, interval: TimeInterval,
+        createdAt: TimeInterval, nextRun: TimeInterval?, lastRun: TimeInterval?
+    ) {
+        self.id = id
+        self.name = name
+        self.path = path
+        self.interval = interval
+        self.createdAt = createdAt
+        self.nextRun = nextRun
+        self.lastRun = lastRun
+    }
 }

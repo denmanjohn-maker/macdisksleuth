@@ -1,4 +1,5 @@
 import ArgumentParser
+import Foundation
 import DiskSleuthKit
 
 @main
@@ -13,41 +14,40 @@ struct Disksleuth: AsyncParsableCommand {
 
 // MARK: - Schedule Subcommand
 
+/// Records a recurring-scan schedule in `~/.disksleuth/schedules.json`.
+/// Nothing runs the schedule yet; this only stores it.
 struct Schedule: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "schedule",
-        abstract: "Schedule recurring scans"
+        abstract: "Record a recurring scan schedule (stored only; nothing runs it yet)."
     )
 
-    @Argument(help: "Path to scan (default: /)")
+    @Argument(help: "Path to scan.")
     var path: String = "/"
 
-    @Option(name: .customLong("interval"), help: "Scan interval in seconds (default: 86400 = daily)")
+    @Option(name: .customLong("interval"), help: "Scan interval in seconds (default: 86400 = daily).")
     var interval: Int = 86400
 
-    @Option(name: .customLong("name"), help: "Schedule name")
+    @Option(name: .customLong("name"), help: "Schedule name.")
     var name: String?
 
-    @Flag(name: .customLong("now"), help: "Run the scan immediately")
-    var now: Bool = false
-
     func run() throws {
-        let store = ScanStore()
+        guard interval > 0 else { throw ValidationError("--interval must be positive.") }
+        let now = Date().timeIntervalSince1970
         let schedule = ScanSchedule(
             id: UUID().uuidString,
             name: name ?? "Daily Scan",
-            path: path,
+            path: (path as NSString).expandingTildeInPath,
             interval: TimeInterval(interval),
-            createdAt: Date().timeIntervalSince1970,
-            nextRun: now ? nil : Date().timeIntervalSince1970 + TimeInterval(interval),
+            createdAt: now,
+            nextRun: now + TimeInterval(interval),
             lastRun: nil
         )
-
-        let created = try store.createSchedule(schedule)
-        print("✅ Schedule created: \(created.name) (ID: \(created.id))")
-        print("   Path: \(created.path)")
-        print("   Interval: \(Int(created.interval)) seconds")
-        print("   Next run: \(created.nextRun.map { Date(timeIntervalSince1970: $0).formatted(.dateTime) } ?? "Immediate")")
+        let created = try ScanStore().createSchedule(schedule)
+        print("Schedule recorded: \(created.name) (ID: \(created.id))")
+        print("  Path: \(created.path)")
+        print("  Interval: \(Int(created.interval)) seconds")
+        print("  Note: nothing runs schedules yet; this is stored only.")
     }
 }
 
@@ -56,198 +56,73 @@ struct Schedule: AsyncParsableCommand {
 struct Export: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "export",
-        abstract: "Export scan results to file"
+        abstract: "Scan a folder and export the summary as JSON."
     )
 
-    @Argument(help: "Path to scan (default: /)")
-    var path: String = "/"
+    @Argument(help: "Path to scan.")
+    var path: String = "."
 
-    @Option(name: .customLong("format"), help: "Export format: json, csv, markdown")
+    @Option(name: .customLong("format"), help: "Export format (only json is implemented).")
     var format: String = "json"
 
-    @Option(name: .customLong("output"), help: "Output file path")
+    @Option(name: .customLong("output"), help: "Output file path (default: stdout).")
     var output: String?
 
-    @Flag(name: .customLong("latest"), help: "Export the latest scan")
-    var latest: Bool = false
-
-    func run() throws {
-        let scanner = Scanner(path: path)
-        let result = try await scanner.scan()
-        let outputFormat = format.lowercased()
-
-        switch outputFormat {
-        case "json":
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            let data = try encoder.encode(result)
-            let jsonString = String(data: data, encoding: .utf8) ?? ""
-            let outputPath = output ?? "/tmp/disksleuth_export.json"
-            try jsonString.write(toFile: outputPath, atomically: true, encoding: .utf8)
-            print("✅ Exported to \(outputPath)")
-
-        case "csv":
-            let csvData = try exportToCSV(result)
-            let outputPath = output ?? "/tmp/disksleuth_export.csv"
-            try csvData.write(toFile: outputPath, atomically: true, encoding: .utf8)
-            print("✅ Exported to \(outputPath)")
-
-        case "markdown":
-            let mdData = try exportToMarkdown(result)
-            let outputPath = output ?? "/tmp/disksleuth_export.md"
-            try mdData.write(toFile: outputPath, atomically: true, encoding: .utf8)
-            print("✅ Exported to \(outputPath)")
-
-        default:
-            throw ScanError.invalidArgument("Invalid format: \(format). Use json, csv, or markdown.")
+    func run() async throws {
+        guard format.lowercased() == "json" else {
+            throw NotImplementedError(feature: "export --format \(format)")
         }
-    }
+        let target = (path as NSString).expandingTildeInPath
+        let result = try await ScanRunner.run(path: target)
 
-    private func exportToCSV(_ result: ScanResult) throws -> String {
-        var csv = "Path,Logical,Physical,Unique\n"
-        // CSV export would iterate through the graph and format as CSV
-        // This is a simplified version
-        csv += "Scan completed successfully\n"
-        return csv
-    }
+        struct Payload: Codable {
+            var schemaVersion = 1
+            var root: String
+            var filesystem: String
+            var summary: ScanSummary
+        }
+        let payload = Payload(
+            root: result.graph.rootPath,
+            filesystem: result.volume.fsTypeName,
+            summary: result.graph.summary
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(payload)
 
-    private func exportToMarkdown(_ result: ScanResult) throws -> String {
-        var md = "# DiskSleuth Export\n\n"
-        md += "## Scan Summary\n\n"
-        // Markdown export would format the scan results as a markdown report
-        // This is a simplified version
-        md += "Export completed successfully\n"
-        return md
+        if let output {
+            try data.write(to: URL(fileURLWithPath: (output as NSString).expandingTildeInPath), options: [.atomic])
+            print("Exported to \(output)")
+        } else {
+            FileHandle.standardOutput.write(data)
+            FileHandle.standardOutput.write(Data("\n".utf8))
+        }
     }
 }
 
-// MARK: - Diff Subcommand
+// MARK: - Not-yet-implemented subcommands
+
+/// Raised by commands that are declared but not built yet, so they fail
+/// loudly instead of reporting results they never computed.
+struct NotImplementedError: LocalizedError {
+    var feature: String
+    var errorDescription: String? { "`\(feature)` is not implemented yet." }
+}
 
 struct Diff: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "diff",
-        abstract: "Compare scan results"
-    )
-
-    @Argument(help: "Path to scan (default: /)")
-    var path: String = "/"
-
-    @Option(name: .customLong("baseline"), help: "Baseline scan ID or 'latest'")
-    var baseline: String = "latest"
-
-    @Flag(name: .customLong("verbose", short: .customLong("v"), completion: .default), help: "Verbose output")
-    var verbose: Bool = false
-
-    func run() throws {
-        let store = ScanStore()
-        let baselineRecord = try store.loadScanRecord(id: baseline) ?? try store.loadLatestScan()
-
-        guard let baselineRecord = baselineRecord else {
-            print("❌ No baseline scan found. Run a scan first.")
-            return
-        }
-
-        let scanner = Scanner(path: path)
-        let currentResult = try await scanner.scan()
-
-        // Diff logic would compare current scan with baseline
-        // This is a simplified version
-        print("📊 Scan Diff")
-        print("   Baseline: \(baselineRecord.path) (\(baselineRecord.timestamp))")
-        print("   Current: \(currentResult.graph.rootPath)")
-        print("   Diff completed successfully")
-    }
+        commandName: "diff", abstract: "Compare scan results (not implemented yet).", shouldDisplay: false)
+    func run() throws { throw NotImplementedError(feature: "diff") }
 }
-
-// MARK: - WhatIf Subcommand
 
 struct WhatIf: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "what-if",
-        abstract: "Analyze what-if scenarios"
-    )
-
-    @Argument(help: "Path to scan (default: /)")
-    var path: String = "/"
-
-    @Option(name: .customLong("scenario"), help: "Scenario to analyze: clones, duplicates, purgeable")
-    var scenario: String = "clones"
-
-    @Flag(name: .customLong("verbose", short: .customLong("v"), completion: .default), help: "Verbose output")
-    var verbose: Bool = false
-
-    func run() throws {
-        let scanner = Scanner(path: path)
-        let result = try await scanner.scan()
-
-        print("🔮 What-If Analysis: \(scenario)")
-        print("   Path: \(path)")
-
-        switch scenario {
-        case "clones":
-            // Analyze clone files and calculate potential space savings
-            print("   Analyzing clone files...")
-            print("   This would show how much space could be freed by removing APFS clones")
-
-        case "duplicates":
-            // Analyze duplicate files and calculate potential space savings
-            print("   Analyzing duplicate files...")
-            print("   This would show how much space could be freed by removing duplicates")
-
-        case "purgeable":
-            // Analyze purgeable files and calculate potential space savings
-            print("   Analyzing purgeable files...")
-            print("   This would show how much space could be freed by removing purgeable content")
-
-        default:
-            throw ScanError.invalidArgument("Invalid scenario: \(scenario). Use clones, duplicates, or purgeable.")
-        }
-    }
+        commandName: "what-if", abstract: "Analyze what-if scenarios (not implemented yet).", shouldDisplay: false)
+    func run() throws { throw NotImplementedError(feature: "what-if") }
 }
-
-// MARK: - Cleanup Subcommand
 
 struct Cleanup: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "cleanup",
-        abstract: "Clean up APFS snapshots and other recoverable space"
-    )
-
-    @Option(name: .customLong("remove-snapshots"), help: "Remove APFS snapshots")
-    var removeSnapshots: Bool = false
-
-    @Option(name: .customLong("purgeable", short: .customLong("p"), completion: .default), help: "Clean purgeable files")
-    var purgeable: Bool = false
-
-    @Option(name: .customLong("dry-run", short: .customLong("d"), completion: .default), help: "Show what would be cleaned without actually cleaning")
-    var dryRun: Bool = false
-
-    func run() throws {
-        if removeSnapshots {
-            // Remove APFS snapshots using tmutil
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/tmutil")
-            process.arguments = ["list", "local"]
-            process.currentDirectoryURL = URL(fileURLWithPath: "/")
-
-            try process.run()
-            // Parse output and remove snapshots
-            print("🧹 Cleaning APFS snapshots...")
-            if dryRun {
-                print("   (Dry run - no changes made)")
-            } else {
-                print("   Snapshots removed successfully")
-            }
-        }
-
-        if purgeable {
-            // Clean purgeable files
-            print("🧹 Cleaning purgeable files...")
-            if dryRun {
-                print("   (Dry run - no changes made)")
-            } else {
-                print("   Purgeable files cleaned successfully")
-            }
-        }
-    }
+        commandName: "cleanup", abstract: "Clean up snapshots and purgeable space (not implemented yet).", shouldDisplay: false)
+    func run() throws { throw NotImplementedError(feature: "cleanup") }
 }
