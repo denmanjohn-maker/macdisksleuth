@@ -9,7 +9,7 @@ func deviceID(_ dev: dev_t) -> UInt64 {
     UInt64(UInt32(bitPattern: dev))
 }
 
-public struct ScanOptions: Sendable {
+public struct ScanOptions: Sendable, Codable {
     /// Max directories being read concurrently.
     public var maxConcurrency: Int
     /// Traverse onto other volumes at mount points (the system↔Data volume

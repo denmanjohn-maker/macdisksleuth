@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<title>DiskSleuth</title>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#23467a"/><stop offset="1" stop-color="#090e1d"/></linearGradient>
+<linearGradient id="handle" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3f4f6"/><stop offset="1" stop-color="#9ca3af"/></linearGradient>
+<linearGradient id="shine" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#000" flood-opacity=".35"/></filter>
+</defs>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#shadow)"/>
+<line x1="656.8" y1="656.8" x2="773.5" y2="773.5" stroke="url(#handle)" stroke-width="88" stroke-linecap="round"/>
+<circle cx="468" cy="468" r="222.0" fill="#0b1226" fill-opacity=".78"/>
+<circle cx="468" cy="468" r="222.0" fill="url(#shine)"/>
+<path d="M310.3 477.6A158 158 0 0 1 450.0 311.0" fill="none" stroke="#2dd4bf" stroke-width="36" stroke-linecap="round" opacity="0.5"/>
+<path d="M502.3 313.8A158 158 0 0 1 623.3 439.1" fill="none" stroke="#3b82f6" stroke-width="36" stroke-linecap="round" opacity="0.5"/>
+<path d="M624.3 491.4A158 158 0 0 1 545.9 605.5" fill="none" stroke="#8b5cf6" stroke-width="36" stroke-linecap="round" opacity="0.5"/>
+<path d="M496.7 623.4A158 158 0 0 1 385.5 602.8" fill="none" stroke="#f59e0b" stroke-width="36" stroke-linecap="round" opacity="0.5"/>
+<path d="M346.0 568.4A158 158 0 0 1 317.3 515.6" fill="none" stroke="#fb7185" stroke-width="36" stroke-linecap="round" opacity="0.5"/>
+<path d="M387.0 371.5A126.0 126.0 0 1 1 371.5 549.0" fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="butt" stroke-dasharray="3 11" opacity=".8"/>
+<circle cx="468" cy="468" r="44" fill="#dbeafe" fill-opacity=".92"/><circle cx="468" cy="468" r="14" fill="#0b1226"/>
+<path d="M211.2 476.9A257 257 0 0 1 432.1 213.5" fill="none" stroke="#2dd4bf" stroke-width="72" stroke-linecap="round" />
+<path d="M530.3 218.7A257 257 0 0 1 719.4 414.5" fill="none" stroke="#3b82f6" stroke-width="72" stroke-linecap="round" />
+<path d="M721.1 512.7A257 257 0 0 1 600.5 688.2" fill="none" stroke="#8b5cf6" stroke-width="72" stroke-linecap="round" />
+<path d="M508.1 721.9A257 257 0 0 1 339.6 690.6" fill="none" stroke="#f59e0b" stroke-width="72" stroke-linecap="round" />
+<path d="M265.4 626.1A257 257 0 0 1 225.0 551.8" fill="none" stroke="#fb7185" stroke-width="72" stroke-linecap="round" />
+</svg>
