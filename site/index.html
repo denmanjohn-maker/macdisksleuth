@@ -28,10 +28,6 @@ a.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(-
 ul{padding-left:1.2em}
 pre{background:var(--card);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:.88rem;line-height:1.5}
 code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-#shots[hidden]{display:none}
-#shots figure{margin:0 0 28px}
-#shots img{width:100%;height:auto;border-radius:12px;border:1px solid var(--line);display:block}
-#shots figcaption{color:var(--muted);font-size:.92rem;margin-top:8px}
 footer{margin-top:56px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:16px}
 a{color:var(--accent)}
 </style>
@@ -46,16 +42,6 @@ a{color:var(--accent)}
     <a class="btn" href="https://github.com/denmanjohn-maker/macdisksleuth">Source on GitHub</a>
   </div>
 </header>
-
-<section id="shots" hidden aria-label="Screenshots">
-  <h2>See it</h2>
-  <figure data-img="overview.png"><img alt="Disk overview: capacity, purgeable space and local snapshots" loading="lazy"><figcaption>Disk overview: capacity, purgeable space and Time Machine snapshots.</figcaption></figure>
-  <figure data-img="sunburst.png"><img alt="Interactive sunburst of a scanned folder" loading="lazy"><figcaption>Interactive sunburst. Click a folder to drill in.</figcaption></figure>
-  <figure data-img="lenses.png"><img alt="Size lens toggle between logical, physical and freeable" loading="lazy"><figcaption>Switch between logical, physical and freeable sizes.</figcaption></figure>
-  <figure data-img="delete.png"><img alt="Delete to Trash showing the bytes it will really free" loading="lazy"><figcaption>Delete to Trash shows what you will really get back.</figcaption></figure>
-  <figure data-img="quickaction.png"><img alt="Analyze with DiskSleuth in the Finder Quick Actions menu" loading="lazy"><figcaption>Right-click any folder in Finder: Quick Actions, Analyze with DiskSleuth.</figcaption></figure>
-  <figure data-img="cli.png"><img alt="disksleuth scan output in a terminal" loading="lazy"><figcaption>The <code>disksleuth</code> command-line tool.</figcaption></figure>
-</section>
 
 <h2>Why another disk analyzer?</h2>
 <p>Popular disk-usage tools were designed for a filesystem Apple stopped shipping years ago. On modern macOS, copy-on-write clones get double-counted, hard links inflate totals, sparse and compressed files report sizes they don't occupy, and Time Machine local snapshots quietly hold on to space you thought you freed. The numbers don't match Finder, and deletions don't give you your disk back.</p>
@@ -97,20 +83,5 @@ swift build -c release
   MIT licensed. <a href="https://github.com/denmanjohn-maker/macdisksleuth/blob/main/docs/truth-engine.md">How the accounting works</a>
 </footer>
 </main>
-<script>
-// Show only screenshots that actually exist in img/; hide the whole section if none do.
-(function () {
-  var section = document.getElementById("shots");
-  var figs = Array.prototype.slice.call(section.querySelectorAll("figure"));
-  var shown = 0, pending = figs.length;
-  figs.forEach(function (fig) {
-    var img = fig.querySelector("img");
-    img.onload = function () { shown++; done(); };
-    img.onerror = function () { fig.remove(); done(); };
-    img.src = "img/" + fig.getAttribute("data-img");
-  });
-  function done() { if (--pending === 0 && shown > 0) section.hidden = false; }
-})();
-</script>
 </body>
 </html>
