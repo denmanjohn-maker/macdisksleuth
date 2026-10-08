@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DiskSleuth</title>
 <meta name="description" content="The disk analyzer that tells you the truth on APFS: logical, physical, and freeable sizes for macOS.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta property="og:title" content="DiskSleuth">
+<meta property="og:image" content="https://denmanjohn-maker.github.io/macdisksleuth/og.png">
+<meta name="twitter:card" content="summary_large_image">
 <meta property="og:description" content="The disk analyzer that tells you the truth on APFS.">
 <style>
 :root{--bg:#fff;--fg:#1d1d1f;--muted:#6e6e73;--card:#f5f5f7;--line:#d2d2d7;--accent:#0a64d6;--accent-fg:#fff}
@@ -13,7 +18,8 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 main{max-width:860px;margin:0 auto;padding:0 16px 64px}
-header{padding:64px 0 32px}
+header{padding:48px 0 32px}
+.logo{display:block;margin:0 0 8px -12px}
 h1{font-size:clamp(2.2rem,6vw,3.4rem);line-height:1.1;margin:0 0 12px}
 h2{font-size:1.5rem;margin:48px 0 12px}
 .lede{font-size:1.2rem;color:var(--muted);margin:0 0 24px;max-width:36em}
@@ -35,6 +41,7 @@ a{color:var(--accent)}
 <body>
 <main>
 <header>
+  <img class="logo" src="logo.svg" alt="" width="120" height="120">
   <h1>DiskSleuth</h1>
   <p class="lede">The disk analyzer that tells you the truth on APFS. It reports what is really on disk, and what deleting something will really free.</p>
   <div class="btns">

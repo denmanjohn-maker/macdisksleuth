@@ -1,3 +1,5 @@
+<p align="center"><img src="branding/logo.svg" alt="DiskSleuth logo" width="140"></p>
+
 # DiskSleuth
 
 **The disk analyzer that tells you the truth on APFS.**
