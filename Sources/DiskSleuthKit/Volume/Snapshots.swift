@@ -31,6 +31,27 @@ extension VolumeService {
         return (try? await snapshotsViaTmutil(mountPoint)) ?? []
     }
 
+    /// Delete one local Time Machine snapshot by its embedded date
+    /// (`tmutil deletelocalsnapshots <date>`). Throws with tmutil's message on failure.
+    public static func deleteLocalSnapshot(date: String) async throws {
+        let output = try await Subprocess.run("/usr/bin/tmutil", ["deletelocalsnapshots", date])
+        guard output.status == 0 else {
+            let message = String(decoding: output.stderr.isEmpty ? output.stdout : output.stderr, as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            throw SnapshotError.deleteFailed(date: date, message: message.isEmpty ? "exit \(output.status)" : message)
+        }
+    }
+
+    public enum SnapshotError: Error, LocalizedError, Sendable {
+        case deleteFailed(date: String, message: String)
+
+        public var errorDescription: String? {
+            switch self {
+            case .deleteFailed(let date, let message): "Could not delete snapshot \(date): \(message)"
+            }
+        }
+    }
+
     private struct DiskutilSnapshotList: Decodable {
         struct Snapshot: Decodable {
             var SnapshotName: String?
