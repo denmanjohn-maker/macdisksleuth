@@ -111,6 +111,7 @@ struct SettingsView: View {
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Group {
@@ -124,5 +125,6 @@ struct RootView: View {
             }
         }
         .navigationTitle(model.windowTitle)
+        .onAppear { model.openWindow = openWindow }
     }
 }

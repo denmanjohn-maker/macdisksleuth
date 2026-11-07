@@ -11,6 +11,9 @@ struct FixRecommendationView: View {
     @Environment(\.dismiss) private var dismiss
 
     let recommendation: Recommendation
+    /// The scan the member NodeIDs belong to. A rescan invalidates them, so
+    /// Delete is refused until Fix is reopened on the new list.
+    let scanGeneration: Int
     @State private var items: [Recommendation.Item]
     @State private var checked: Set<String>
     @State private var phase: Phase = .choosing
@@ -23,11 +26,14 @@ struct FixRecommendationView: View {
         case done(BatchTrashResult)
     }
 
-    init(recommendation: Recommendation) {
+    init(recommendation: Recommendation, scanGeneration: Int) {
         self.recommendation = recommendation
+        self.scanGeneration = scanGeneration
         _items = State(initialValue: recommendation.items)
         _checked = State(initialValue: recommendation.preselectedItemIDs)
     }
+
+    private var scanChanged: Bool { model.scanGeneration != scanGeneration }
 
     private var context: RecommendationContext { model.recommendationContext }
     private var actionable: [Recommendation.Item] { items.filter { $0.node != nil } }
@@ -110,13 +116,20 @@ struct FixRecommendationView: View {
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if scanChanged {
+                Label("The scan changed since this list was built. Close and open Fix again.", systemImage: "arrow.clockwise")
+                    .font(type.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
     private func row(_ item: Recommendation.Item) -> some View {
         let canAct = item.node != nil
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Toggle("", isOn: binding(for: item.id))
+            // The path is the accessible name; it stays hidden visually.
+            Toggle(context.displayPath(item.path), isOn: binding(for: item.id))
                 .toggleStyle(.checkbox)
                 .labelsHidden()
                 .disabled(!canAct || !isChoosing)
@@ -231,7 +244,7 @@ struct FixRecommendationView: View {
                         Label("Delete", systemImage: "trash")
                     }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(checkedItems.isEmpty)
+                    .disabled(checkedItems.isEmpty || scanChanged)
                 }
             }
         }
@@ -250,7 +263,7 @@ struct FixRecommendationView: View {
                 phase = .refused(message)
             case .success:
                 phase = .deleting
-                let result = await model.moveToTrash(nodes)
+                let result = await model.moveToTrash(nodes, from: scanGeneration)
                 phase = .done(result)
             }
         }

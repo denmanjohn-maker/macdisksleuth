@@ -1,8 +1,13 @@
 extension FileGraph {
     /// The graph after `node` is deleted (e.g. moved to Trash): its rolled-up
     /// sizes are subtracted from every ancestor and it disappears from its
-    /// parent's children via a tombstone. O(depth); no reindexing. A rescan
-    /// refreshes exact shared-bytes accounting.
+    /// parent's children via a tombstone. O(depth); no reindexing.
+    ///
+    /// Shared-byte corrections charged at a common ancestor (hard links or
+    /// clones spanning two subtrees) are not re-derived, so totals above a
+    /// removed sharing group are approximate until the next scan. The two
+    /// invariants every reader relies on are kept regardless: no size is ever
+    /// negative, and unique never exceeds physical.
     public func removing(_ node: NodeID) -> FileGraph {
         guard node.raw != 0 else { return self }
         var copy = self
@@ -10,10 +15,11 @@ extension FileGraph {
 
         var ancestor = parents[Int(node.raw)]
         while ancestor >= 0 {
-            copy.logicalArr[Int(ancestor)] -= removed.logical
-            copy.physicalArr[Int(ancestor)] -= removed.physical
-            copy.uniqueArr[Int(ancestor)] -= removed.unique
-            ancestor = parents[Int(ancestor)]
+            let i = Int(ancestor)
+            copy.logicalArr[i] = max(copy.logicalArr[i] - removed.logical, 0)
+            copy.physicalArr[i] = max(copy.physicalArr[i] - removed.physical, 0)
+            copy.uniqueArr[i] = min(max(copy.uniqueArr[i] - removed.unique, 0), copy.physicalArr[i])
+            ancestor = parents[i]
         }
 
         let index = Int(node.raw)
@@ -35,13 +41,19 @@ extension FileGraph {
         return copy
     }
 
-    /// Whether `node` has been tombstoned by `removing(_:)`. The root is never removed.
+    /// Whether `node`, or any folder above it, has been tombstoned by
+    /// `removing(_:)`. Children of a removed folder keep their entries, so the
+    /// walk up is what makes them read as gone. The root is never removed.
     public func isRemoved(_ node: NodeID) -> Bool {
-        let index = Int(node.raw)
-        guard index > 0, index < parents.count else { return false }
-        let parent = Int(parents[index])
-        let range = Int(childStart[parent])..<Int(childStart[parent + 1])
-        return !childItems[range].contains(node.raw)
+        var current = Int(node.raw)
+        guard current > 0, current < parents.count else { return false }
+        while current > 0 {
+            let parent = Int(parents[current])
+            let range = Int(childStart[parent])..<Int(childStart[parent + 1])
+            if !childItems[range].contains(Int32(current)) { return true }
+            current = parent
+        }
+        return false
     }
 
     /// The graph after every node in `nodes` is deleted. Nodes already removed

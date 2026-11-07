@@ -5,6 +5,9 @@ import SwiftUI
 struct RecommendationsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.typography) private var type
+    /// The Fix sheet is presented from here, not from a card: a card can vanish
+    /// when the list recomputes after the deletion, and the summary must outlive it.
+    @State private var fixing: Recommendation?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -23,7 +26,7 @@ struct RecommendationsView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 10) {
                             ForEach(Array(report.recommendations.enumerated()), id: \.element.id) { index, recommendation in
-                                RecommendationCard(recommendation: recommendation, rank: index + 1)
+                                RecommendationCard(recommendation: recommendation, rank: index + 1) { fixing = $0 }
                             }
                             if let advice = report.volumeAdvice {
                                 VolumeAdviceCard(advice: advice)
@@ -49,6 +52,11 @@ struct RecommendationsView: View {
             }
         }
         .padding(14)
+        .sheet(item: $fixing) { target in
+            FixRecommendationView(recommendation: target, scanGeneration: model.scanGeneration)
+                .environment(model)
+                .environment(\.typography, type)
+        }
     }
 
     private var header: some View {
@@ -72,8 +80,9 @@ struct RecommendationCard: View {
     @Environment(\.openWindow) private var openWindow
     var recommendation: Recommendation
     var rank: Int
+    /// Asks the owning list to present the Fix sheet for this recommendation.
+    var onFix: (Recommendation) -> Void
     @State private var confirmingDelete = false
-    @State private var fixing = false
     @State private var deleteError: String?
 
     private var context: RecommendationContext { model.recommendationContext }
@@ -170,7 +179,7 @@ struct RecommendationCard: View {
                 Spacer()
                 if recommendation.isFixable {
                     Button {
-                        fixing = true
+                        onFix(recommendation)
                     } label: {
                         Label("Fix…", systemImage: "checklist")
                     }
@@ -192,11 +201,6 @@ struct RecommendationCard: View {
         }
         .padding(12)
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
-        .sheet(isPresented: $fixing) {
-            FixRecommendationView(recommendation: recommendation)
-                .environment(model)
-                .environment(\.typography, type)
-        }
         .confirmationDialog(
             "Move \"\(recommendation.title)\" to Trash?",
             isPresented: $confirmingDelete, titleVisibility: .visible

@@ -76,7 +76,13 @@ final class AppModel {
 
     private var session: ScanSession?
     /// Guards against a cancelled scan's late result clobbering a newer one.
-    private var scanGeneration = 0
+    /// Views that snapshot NodeIDs (the Fix sheet) pin them to this value:
+    /// ids stay valid across edits of one scan, never across a rescan.
+    private(set) var scanGeneration = 0
+
+    /// SwiftUI's window opener, captured by whichever scene appears first, so
+    /// AppKit-side code (the Finder Quick Action) can reopen the results window.
+    var openWindow: OpenWindowAction?
 
     var windowTitle: String {
         switch phase {
@@ -292,6 +298,32 @@ final class AppModel {
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: graph.path(of: node))])
     }
 
+    // MARK: - Windows
+
+    /// Bring the results window forward, reopening it if the user closed it
+    /// while a recommendation window stayed open. False when no results window
+    /// exists and no scene has handed us `openWindow` yet (cold launch).
+    @discardableResult
+    func showResultsWindow() -> Bool {
+        NSApp.activate()
+        if let window = NSApp.windows.first(where: { $0.canBecomeMain && Self.isResultsWindow($0) }) {
+            window.makeKeyAndOrderFront(nil)
+            return true
+        }
+        guard let openWindow else { return false }
+        openWindow(id: MacDiskSleuthApp.mainWindowID)
+        return true
+    }
+
+    /// SwiftUI names a scene's windows "<scene id>-AppWindow-N".
+    nonisolated static func isResultsWindow(_ window: NSWindow) -> Bool {
+        window.identifier?.rawValue.hasPrefix(MacDiskSleuthApp.mainWindowID) ?? false
+    }
+
+    nonisolated static func isRecommendationWindow(_ window: NSWindow) -> Bool {
+        window.identifier?.rawValue.hasPrefix(MacDiskSleuthApp.recommendationWindowID) ?? false
+    }
+
     /// Move to Trash and patch the graph. Returns an error message, or nil on success.
     func moveToTrash(_ node: NodeID) -> String? {
         guard let graph else { return "No scan loaded." }
@@ -313,15 +345,18 @@ final class AppModel {
     }
 
     /// Move several items to the Trash in one go (the Fix flow), then patch
-    /// the graph once. Items already removed count as moved with nothing
-    /// freed; a file that vanished since the scan counts the same way.
-    func moveToTrash(_ nodes: [NodeID]) async -> BatchTrashResult {
-        guard let graph else {
-            return BatchTrashResult(
-                failures: nodes.map { TrashFailure(node: $0, path: "", message: "No scan loaded.") })
+    /// the graph once. `generation` is the `scanGeneration` the NodeIDs came
+    /// from: a rescan since then means they name other files, so nothing is
+    /// touched. Items already removed count as moved with nothing freed; a
+    /// file that vanished since the scan counts the same way.
+    func moveToTrash(_ nodes: [NodeID], from generation: Int) async -> BatchTrashResult {
+        guard let graph, generation == scanGeneration else {
+            let message =
+                graph == nil
+                ? "No scan loaded."
+                : "The scan changed since this list was built; nothing was moved. Open Fix again."
+            return BatchTrashResult(failures: nodes.map { TrashFailure(node: $0, path: "", message: message) })
         }
-        let stamp = graphStamp
-        let generation = scanGeneration
 
         var result = BatchTrashResult()
         var pending: [TrashWorkItem] = []
@@ -361,8 +396,10 @@ final class AppModel {
         }
         result.trashed.append(contentsOf: trashedNow)
 
-        // A rescan that landed meanwhile already reflects the disk; never patch a stale graph.
-        guard graphStamp == stamp, scanGeneration == generation, let current = self.graph, !trashedNow.isEmpty
+        // A rescan that landed meanwhile already reflects the disk; never patch
+        // a stale graph. Edits of the same scan (an inspector delete) keep
+        // NodeIDs valid, so the current graph is patched regardless of them.
+        guard scanGeneration == generation, let current = self.graph, !trashedNow.isEmpty
         else { return result }
         for node in trashedNow where focus == node || isDescendant(focus, of: node) {
             focus = current.parent(of: node) ?? current.root

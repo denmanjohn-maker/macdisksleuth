@@ -8,8 +8,12 @@ struct RecommendationWindowView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.typography) private var type
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openWindow) private var openWindow
     var recommendationID: String?
     @State private var lastTitle = "Recommendation"
+    /// Presented from the window root so the summary survives the detail view
+    /// being swapped for "no longer applies" once the list recomputes.
+    @State private var fixing: Recommendation?
 
     private var recommendation: Recommendation? {
         guard let recommendationID, let report = model.recommendations else { return nil }
@@ -21,7 +25,7 @@ struct RecommendationWindowView: View {
     var body: some View {
         Group {
             if let recommendation {
-                RecommendationDetailView(recommendation: recommendation)
+                RecommendationDetailView(recommendation: recommendation) { fixing = $0 }
                     .onAppear { lastTitle = recommendation.title }
                     .onChange(of: recommendation.title) { _, newTitle in lastTitle = newTitle }
             } else if model.graph == nil {
@@ -49,6 +53,12 @@ struct RecommendationWindowView: View {
         }
         .navigationTitle(lastTitle)
         .frame(minWidth: 540, minHeight: 420)
+        .sheet(item: $fixing) { target in
+            FixRecommendationView(recommendation: target, scanGeneration: model.scanGeneration)
+                .environment(model)
+                .environment(\.typography, type)
+        }
+        .onAppear { model.openWindow = openWindow }
     }
 
     private func placeholder<Accessory: View>(
@@ -75,9 +85,9 @@ struct RecommendationWindowView: View {
 struct RecommendationDetailView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.typography) private var type
-    @Environment(\.openWindow) private var openWindow
     var recommendation: Recommendation
-    @State private var fixing = false
+    /// Asks the window to present the Fix sheet for this recommendation.
+    var onFix: (Recommendation) -> Void
     @State private var confirmingDelete = false
     @State private var deleteError: String?
 
@@ -111,11 +121,6 @@ struct RecommendationDetailView: View {
             Divider()
             buttonBar
                 .padding(12)
-        }
-        .sheet(isPresented: $fixing) {
-            FixRecommendationView(recommendation: recommendation)
-                .environment(model)
-                .environment(\.typography, type)
         }
         .confirmationDialog(
             "Move \"\(recommendation.title)\" to Trash?",
@@ -221,7 +226,7 @@ struct RecommendationDetailView: View {
             Spacer()
             if recommendation.isFixable {
                 Button {
-                    fixing = true
+                    onFix(recommendation)
                 } label: {
                     Label("Fix…", systemImage: "checklist")
                 }
@@ -241,12 +246,10 @@ struct RecommendationDetailView: View {
         }
     }
 
-    /// Navigate the main window to the item, reopening it if the user closed it.
+    /// Navigate the results window to the item and bring it forward,
+    /// reopening it if the user closed it.
     private func showInMainWindow(_ node: NodeID) {
         model.show(node)
-        let mainIsVisible = NSApp.windows.contains {
-            $0.isVisible && ($0.identifier?.rawValue.hasPrefix(MacDiskSleuthApp.mainWindowID) ?? false)
-        }
-        if !mainIsVisible { openWindow(id: MacDiskSleuthApp.mainWindowID) }
+        model.showResultsWindow()
     }
 }
