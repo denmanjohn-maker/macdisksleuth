@@ -4,10 +4,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-kit=$(sed -n 's/.*static let string = "\(.*\)".*/\1/p' Sources/DiskSleuthKit/Version.swift)
+kit=$(sed -n 's/.*static let string = "\(.*\)".*/\1/p' Sources/MacDiskSleuthKit/Version.swift)
 app=$(sed -n 's/.*MARKETING_VERSION: "\(.*\)".*/\1/p' App/project.yml)
 
-echo "DiskSleuthVersion.string = $kit"
+echo "MacDiskSleuthVersion.string = $kit"
 echo "MARKETING_VERSION        = $app"
 [ -n "$kit" ] && [ "$kit" = "$app" ] || { echo "error: versions disagree" >&2; exit 1; }
 

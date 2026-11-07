@@ -1,4 +1,4 @@
-import DiskSleuthKit
+import MacDiskSleuthKit
 import Foundation
 
 /// One annular sector of the sunburst. Pure geometry — no drawing.

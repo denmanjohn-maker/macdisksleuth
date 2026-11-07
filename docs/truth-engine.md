@@ -1,13 +1,13 @@
 # The truth engine
 
-DiskSleuth's job is to answer two questions honestly on modern macOS:
+MacDiskSleuth's job is to answer two questions honestly on modern macOS:
 
 1. **What is really on this disk?**
 2. **What will deleting this really give back?**
 
 APFS makes both questions harder than they look, and most tools answer them
 with numbers designed for a filesystem Apple retired in 2017. This document
-defines exactly what DiskSleuth's numbers mean.
+defines exactly what MacDiskSleuth's numbers mean.
 
 ## The three lenses
 
@@ -27,7 +27,7 @@ Why they diverge:
 - **Compressed files** (decmpfs): most of `/Applications` and `/System` is
   transparently compressed; logical exceeds physical, and that saving is real.
 - **Dataless files**: iCloud/File Provider placeholders occupy ~0 local bytes
-  no matter what they claim. DiskSleuth **never opens files**, so scanning
+  no matter what they claim. MacDiskSleuth **never opens files**, so scanning
   can't accidentally trigger downloads.
 
 ## Where shared bytes are counted
@@ -52,16 +52,16 @@ of the tree self-consistent:
 
 Writing into a clone splits it from its APFS clone family (it gets a new clone
 ID) even though unwritten extents remain physically shared. macOS exposes no
-way to re-link those files. DiskSleuth handles this the only honest way:
+way to re-link those files. MacDiskSleuth handles this the only honest way:
 
 - Per-file numbers stay **exact** (`PRIVATESIZE` is the kernel's own answer).
 - The file is flagged ✳ — its residual sharing can't be attributed to a folder.
 - Folder physical totals may over-count such extents (every other tool does
-  too, for *all* clones; DiskSleuth's over-count is limited to diverged ones).
+  too, for *all* clones; MacDiskSleuth's over-count is limited to diverged ones).
 
 ## Space that isn't files
 
-`disksleuth overview` reconciles the numbers Finder, `df`, and Apple's Storage
+`macdisksleuth overview` reconciles the numbers Finder, `df`, and Apple's Storage
 pane each report differently:
 
 - **Purgeable space** = "available for important usage" − "available now".
@@ -69,7 +69,7 @@ pane each report differently:
 - **Local Time Machine snapshots** keep deleted blocks referenced. Deleting
   files may free nothing until snapshots thin (macOS does this under pressure,
   or `tmutil thinlocalsnapshots`). macOS does not report per-snapshot sizes —
-  DiskSleuth says "unknown" rather than inventing a number. Whenever snapshots
+  MacDiskSleuth says "unknown" rather than inventing a number. Whenever snapshots
   exist, freeable numbers carry the caveat: *freed space may appear gradually*.
 - **Per-volume usage** comes from `ATTR_VOL_SPACEUSED`, because `statfs` on
   APFS reports container-wide totals for every volume in the container.
@@ -91,7 +91,7 @@ pane each report differently:
 - Symlinks are recorded, never followed. Dataless directories are never
   descended into (that would trigger File Provider downloads).
 - Every unreadable folder is **recorded, flagged (⛔), and totaled** — never
-  silently skipped. If DiskSleuth can't see something, it tells you exactly
+  silently skipped. If MacDiskSleuth can't see something, it tells you exactly
   how much of the map is dark and how to light it (Full Disk Access).
 
 ## Verifying it yourself
@@ -101,8 +101,8 @@ pane each report differently:
 dd if=/dev/urandom of=orig.bin bs=1m count=64
 cp -c orig.bin clone.bin
 du -sh .                      # ~128M — wrong
-disksleuth scan . --depth 1   # physical ~64M — right
-disksleuth info clone.bin     # "Deleting frees ~0 B now"
+macdisksleuth scan . --depth 1   # physical ~64M — right
+macdisksleuth info clone.bin     # "Deleting frees ~0 B now"
 ```
 
 The test suite builds real fixtures — `clonefile(2)`, `link(2)`, sparse files,

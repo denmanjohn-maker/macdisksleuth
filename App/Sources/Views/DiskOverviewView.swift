@@ -1,4 +1,4 @@
-import DiskSleuthKit
+import MacDiskSleuthKit
 import SwiftUI
 
 /// The first space representation after a scan: one ring for the volume's

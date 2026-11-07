@@ -5,25 +5,25 @@ let package = Package(
     name: "macdisksleuth",
     platforms: [.macOS(.v14)],
     products: [
-        .library(name: "DiskSleuthKit", targets: ["DiskSleuthKit"]),
-        .executable(name: "disksleuth", targets: ["disksleuth"]),
+        .library(name: "MacDiskSleuthKit", targets: ["MacDiskSleuthKit"]),
+        .executable(name: "macdisksleuth", targets: ["macdisksleuth"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0")
     ],
     targets: [
-        .target(name: "DiskSleuthKit"),
+        .target(name: "MacDiskSleuthKit"),
         .executableTarget(
-            name: "disksleuth",
+            name: "macdisksleuth",
             dependencies: [
-                "DiskSleuthKit",
+                "MacDiskSleuthKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),
         .target(name: "FixtureSupport", path: "Tests/FixtureSupport"),
         .testTarget(
-            name: "DiskSleuthKitTests",
-            dependencies: ["DiskSleuthKit", "FixtureSupport"]
+            name: "MacDiskSleuthKitTests",
+            dependencies: ["MacDiskSleuthKit", "FixtureSupport"]
         ),
     ],
     swiftLanguageModes: [.v6]

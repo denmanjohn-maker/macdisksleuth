@@ -1,6 +1,6 @@
 import AppKit
 
-/// Handles the "Analyze with DiskSleuth" Finder Quick Action / Services menu
+/// Handles the "Analyze with MacDiskSleuth" Finder Quick Action / Services menu
 /// item declared under NSServices in project.yml.
 @MainActor
 final class ServiceProvider: NSObject {
@@ -19,7 +19,7 @@ final class ServiceProvider: NSObject {
         let urls = pasteboard.readObjects(
             forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
         guard let url = urls.first else {
-            error.pointee = "DiskSleuth didn't receive a folder to analyze." as NSString
+            error.pointee = "MacDiskSleuth didn't receive a folder to analyze." as NSString
             return
         }
 

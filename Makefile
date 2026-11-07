@@ -15,17 +15,17 @@ release:
 test:
 	swift test
 
-# Generate App/DiskSleuth.xcodeproj from App/project.yml (requires: brew install xcodegen)
+# Generate App/MacDiskSleuth.xcodeproj from App/project.yml (requires: brew install xcodegen)
 generate:
 	xcodegen generate --spec App/project.yml --project App
 
 app: generate
-	xcodebuild -project App/DiskSleuth.xcodeproj -scheme DiskSleuth -configuration Release build CODE_SIGN_IDENTITY=-
+	xcodebuild -project App/MacDiskSleuth.xcodeproj -scheme MacDiskSleuth -configuration Release build CODE_SIGN_IDENTITY=-
 
 # Generate the project and open it in Xcode. Open THIS, not Package.swift —
 # the Swift package only contains the CLI and library, not the app target.
 xcode: generate
-	open App/DiskSleuth.xcodeproj
+	open App/MacDiskSleuth.xcodeproj
 
 clean:
-	rm -rf .build App/DiskSleuth.xcodeproj
+	rm -rf .build App/MacDiskSleuth.xcodeproj

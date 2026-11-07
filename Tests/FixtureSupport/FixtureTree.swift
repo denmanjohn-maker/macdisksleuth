@@ -7,7 +7,7 @@ import Foundation
 public final class FixtureTree {
     public let root: URL
 
-    public init(name: String = "disksleuth-fixture") throws {
+    public init(name: String = "macdisksleuth-fixture") throws {
         root = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(name)-\(UUID().uuidString.prefix(8))", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

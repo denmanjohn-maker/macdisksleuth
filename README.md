@@ -1,12 +1,12 @@
-<p align="center"><img src="branding/logo.svg" alt="DiskSleuth logo" width="140"></p>
+<p align="center"><img src="branding/logo.svg" alt="MacDiskSleuth logo" width="140"></p>
 
-# DiskSleuth
+# MacDiskSleuth
 
 **The disk analyzer that tells you the truth on APFS.**
 
 Every popular disk-usage tool was designed for a filesystem Apple stopped shipping years ago. On modern macOS, copy-on-write clones get double-counted, hard links inflate totals, sparse and compressed files report sizes they don't occupy, and Time Machine local snapshots quietly hold on to space you thought you freed. The result: numbers that don't match Finder, and deletions that don't give you your disk back.
 
-DiskSleuth reports what is *really* on disk — and what deleting something will *really* free.
+MacDiskSleuth reports what is *really* on disk — and what deleting something will *really* free.
 
 ## Three honest size lenses
 
@@ -16,13 +16,13 @@ DiskSleuth reports what is *really* on disk — and what deleting something will
 | **Physical** | What the disk actually holds — clones, hard links, sparse ranges, and compression counted once |
 | **Freeable** | What deleting this would give back *right now* |
 
-An 8 GB video that's a clone of another file shows **8 GB logical, ~0 freeable** — because deleting it frees almost nothing. DiskSleuth is the tool that tells you that *before* you empty the Trash and wonder where your space went.
+An 8 GB video that's a clone of another file shows **8 GB logical, ~0 freeable** — because deleting it frees almost nothing. MacDiskSleuth is the tool that tells you that *before* you empty the Trash and wonder where your space went.
 
 ## What's in the box
 
-- `disksleuth` — a fast CLI: `scan`, `top`, `info`, `overview`, `snapshots`
-- **DiskSleuth.app** — a native SwiftUI app with an interactive sunburst, size-lens toggle, and delete-to-Trash that shows true freeable bytes
-- `DiskSleuthKit` — the shared engine, usable as a Swift package
+- `macdisksleuth` — a fast CLI: `scan`, `top`, `info`, `overview`, `snapshots`
+- **MacDiskSleuth.app** — a native SwiftUI app with an interactive sunburst, size-lens toggle, and delete-to-Trash that shows true freeable bytes
+- `MacDiskSleuthKit` — the shared engine, usable as a Swift package
 
 Built on `getattrlistbulk` with APFS extended attributes (`PRIVATESIZE`, `CLONEID`, extent flags) — the fast path, with per-file clone/sparse/dataless awareness and zero file opens (iCloud placeholders are never downloaded).
 
@@ -34,22 +34,22 @@ Requires macOS 14+.
 git clone https://github.com/denmanjohn-maker/macdisksleuth.git
 cd macdisksleuth
 swift build -c release
-.build/release/disksleuth --help
+.build/release/macdisksleuth --help
 ```
 
 GUI app:
 
 ```sh
 brew install xcodegen   # once
-make app                # builds App/DiskSleuth.xcodeproj → DiskSleuth.app
+make app                # builds App/MacDiskSleuth.xcodeproj → MacDiskSleuth.app
 make xcode              # or: generate the project and open it in Xcode
 ```
 
-> **Building in Xcode?** The `.xcodeproj` is generated, not checked in — run `make xcode` (or `make generate`) first, then build the **DiskSleuth** scheme in `App/DiskSleuth.xcodeproj`. Opening `Package.swift` at the repo root only gives you the CLI and library targets; the app won't appear there. If command-line builds complain that `xcodebuild` requires Xcode, point developer tools at the full Xcode once: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
+> **Building in Xcode?** The `.xcodeproj` is generated, not checked in — run `make xcode` (or `make generate`) first, then build the **MacDiskSleuth** scheme in `App/MacDiskSleuth.xcodeproj`. Opening `Package.swift` at the repo root only gives you the CLI and library targets; the app won't appear there. If command-line builds complain that `xcodebuild` requires Xcode, point developer tools at the full Xcode once: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
 
-**Finder Quick Action.** DiskSleuth.app adds **Analyze with DiskSleuth** to Finder: right-click a folder or volume, then choose **Quick Actions**, or **Services** on older layouts. The app opens and scans that folder. To enable it:
+**Finder Quick Action.** MacDiskSleuth.app adds **Analyze with MacDiskSleuth** to Finder: right-click a folder or volume, then choose **Quick Actions**, or **Services** on older layouts. The app opens and scans that folder. To enable it:
 
-1. Copy `DiskSleuth.app` to `/Applications` and launch it once so macOS registers the service.
+1. Copy `MacDiskSleuth.app` to `/Applications` and launch it once so macOS registers the service.
 2. If the item doesn't appear, turn it on in **System Settings → Keyboard → Keyboard Shortcuts… → Services → Files and Folders**.
 3. Still missing? Refresh the services cache: `/System/Library/CoreServices/pbs -update`, then relaunch Finder (⌥-right-click the Dock icon → Relaunch).
 
@@ -58,25 +58,25 @@ Project page: <https://denmanjohn-maker.github.io/macdisksleuth/>. Prebuilt bina
 ## Quick tour
 
 ```sh
-disksleuth info ~/Movies/render.mov   # truth card: 3 sizes, clone family, "deleting frees X"
-disksleuth scan ~ --top 15            # biggest items, honest sizes
-disksleuth overview                   # capacity, purgeable space, local snapshots
-disksleuth snapshots                  # what Time Machine is still holding
+macdisksleuth info ~/Movies/render.mov   # truth card: 3 sizes, clone family, "deleting frees X"
+macdisksleuth scan ~ --top 15            # biggest items, honest sizes
+macdisksleuth overview                   # capacity, purgeable space, local snapshots
+macdisksleuth snapshots                  # what Time Machine is still holding
 ```
 
 Filter and sort the rankings:
 
 ```sh
-disksleuth top ~ --ext mov,mp4 --min-size 500MB              # big videos only
-disksleuth top ~ --only clone --sort freeable,logical         # clones: what deleting really frees
-disksleuth top ~/Library --include '*cache*' --exclude '.DS_Store'
-disksleuth top ~ --dirs --min-percent 2 --reverse             # folders ≥ 2% of the total, smallest first
-disksleuth scan ~ --min-size 1GB                              # fold small items; totals stay true
+macdisksleuth top ~ --ext mov,mp4 --min-size 500MB              # big videos only
+macdisksleuth top ~ --only clone --sort freeable,logical         # clones: what deleting really frees
+macdisksleuth top ~/Library --include '*cache*' --exclude '.DS_Store'
+macdisksleuth top ~ --dirs --min-percent 2 --reverse             # folders ≥ 2% of the total, smallest first
+macdisksleuth scan ~ --min-size 1GB                              # fold small items; totals stay true
 ```
 
-`top` filters: `--min-size`/`--max-size` (e.g. `100MB`, `1.5GiB`), `--min-percent`, `--ext`/`--exclude-ext`, `--include`/`--exclude` (globs; a pattern with `/` matches the full path), and `--only clone,hardlink,sparse,dataless,compressed,shared-outside`. Sort with `--sort` (`logical`, `physical`, `freeable`, `name`, `path` — comma-separated for tiebreaks) and `--reverse`. See `disksleuth top --help`.
+`top` filters: `--min-size`/`--max-size` (e.g. `100MB`, `1.5GiB`), `--min-percent`, `--ext`/`--exclude-ext`, `--include`/`--exclude` (globs; a pattern with `/` matches the full path), and `--only clone,hardlink,sparse,dataless,compressed,shared-outside`. Sort with `--sort` (`logical`, `physical`, `freeable`, `name`, `path` — comma-separated for tiebreaks) and `--reverse`. See `macdisksleuth top --help`.
 
-> **Tip:** grant your terminal Full Disk Access (System Settings → Privacy & Security) for complete results. DiskSleuth records every folder it couldn't read and says so, rather than silently under-counting.
+> **Tip:** grant your terminal Full Disk Access (System Settings → Privacy & Security) for complete results. MacDiskSleuth records every folder it couldn't read and says so, rather than silently under-counting.
 
 ## How the accounting works
 

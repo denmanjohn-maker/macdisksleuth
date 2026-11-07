@@ -1,5 +1,5 @@
 import AppKit
-import DiskSleuthKit
+import MacDiskSleuthKit
 import Observation
 import SwiftUI
 
@@ -70,7 +70,7 @@ final class AppModel {
 
     var windowTitle: String {
         switch phase {
-        case .welcome: "DiskSleuth"
+        case .welcome: "MacDiskSleuth"
         case .scanning: "Scanning \(scannedPath)…"
         case .results: scannedPath
         }

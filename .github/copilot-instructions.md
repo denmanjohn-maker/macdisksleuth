@@ -2,7 +2,7 @@
 
 ## Build / test / lint
 
-- Swift 6 package (`swift-tools-version: 6.0`), two products: `DiskSleuthKit` (library) and `disksleuth` (executable).
+- Swift 6 package (`swift-tools-version: 6.0`), two products: `MacDiskSleuthKit` (library) and `macdisksleuth` (executable).
 - Build: `swift build` (debug), `swift build -c release`.
 - Test: `swift test`.
 - App (macOS only): `make app` (xcodegen generate + xcodebuild), `make xcode`, `make generate`, `make clean`.
@@ -11,7 +11,7 @@
 
 ## What this repo is
 
-macdisksleuth is a read-only disk forensics tool that answers "where did my disk's space really go?" by scanning APFS volumes with `getattrlistbulk(2)` and reconstructing a file graph from extended attributes. It ships two surfaces: a `disksleuth` CLI (`scan`, `top`, `info`, `overview`, `snapshots`, `cleanup`) and a SwiftUI app (`App/DiskSleuth.app`).
+macdisksleuth is a read-only disk forensics tool that answers "where did my disk's space really go?" by scanning APFS volumes with `getattrlistbulk(2)` and reconstructing a file graph from extended attributes. It ships two surfaces: a `macdisksleuth` CLI (`scan`, `top`, `info`, `overview`, `snapshots`, `cleanup`) and a SwiftUI app (`App/MacDiskSleuth.app`).
 
 ## Architecture
 
@@ -72,9 +72,9 @@ A clone family (one cloneID) is the set of files wholly sharing extents; it is c
 
 ## Repo layout
 
-- `Sources/DiskSleuthKit/` — library.
-- `Sources/disksleuth/` — CLI.
+- `Sources/MacDiskSleuthKit/` — library.
+- `Sources/macdisksleuth/` — CLI.
 - `App/` — SwiftUI app (XcodeGen-generated `.xcodeproj` from `App/project.yml`, not checked in).
-- `Tests/` — `DiskSleuthKitTests` + `FixtureSupport`.
+- `Tests/` — `MacDiskSleuthKitTests` + `FixtureSupport`.
 - `docs/truth-engine.md` — detailed truth-engine semantics.
 - `README.md` — overview, CLI usage, build instructions.
