@@ -51,7 +51,7 @@ ditto -c -k --keepParent "$app" "$tmp/MacDiskSleuth.zip"
 notarize_zip "$tmp/MacDiskSleuth.zip"
 
 note "Stapling the notarization ticket"
-xcrun stapler staple "$app"
+staple_with_retry "$app"
 spctl -a -vv -t exec "$app"
 
 if [ "$install" = 1 ]; then
