@@ -19,7 +19,9 @@ Release notes are auto-generated from merged PRs. Tags with a suffix (`v0.2.0-rc
 
 When the secrets below are set, the Release workflow signs the app and CLI with a Developer ID certificate, submits both to Apple's notary service, and staples the ticket to the app, so downloads open without Gatekeeper warnings. Without them it falls back to ad-hoc signing, and the release notes say so.
 
-Add these under **Settings → Secrets and variables → Actions** on the repository:
+**Fastest path:** on a Mac that has the certificate installed and the `.p8` key downloaded, run `scripts/setup-signing-secrets.sh`. It exports the certificate, encodes both files and stores all six secrets with the GitHub CLI. To get a notarized build on that Mac right away, run `scripts/build-notarized-app.sh --install`.
+
+To set them by hand instead, add these under **Settings → Secrets and variables → Actions** on the repository:
 
 | Secret | Value |
 | --- | --- |
