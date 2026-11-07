@@ -79,7 +79,8 @@ jobs:
           xcodegen generate --spec App/project.yml --project App
           sign_args=(CODE_SIGN_IDENTITY="$SIGN_IDENTITY")
           if [ "$NOTARIZE" = "1" ]; then
-            sign_args+=(DEVELOPMENT_TEAM="$APPLE_TEAM_ID" OTHER_CODE_SIGN_FLAGS="--timestamp")
+            sign_args+=(DEVELOPMENT_TEAM="$APPLE_TEAM_ID" OTHER_CODE_SIGN_FLAGS="--timestamp"
+                        CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO)
           fi
           xcodebuild -project App/MacDiskSleuth.xcodeproj -scheme MacDiskSleuth \
             -configuration Release -derivedDataPath build \

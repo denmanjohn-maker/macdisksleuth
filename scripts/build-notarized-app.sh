@@ -41,7 +41,7 @@ xcodebuild -project App/MacDiskSleuth.xcodeproj -scheme MacDiskSleuth \
   -configuration Release -derivedDataPath build \
   ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
   CODE_SIGN_IDENTITY="$IDENTITY_HASH" DEVELOPMENT_TEAM="$TEAM_ID" \
-  OTHER_CODE_SIGN_FLAGS="--timestamp" build | tail -5
+  OTHER_CODE_SIGN_FLAGS="--timestamp" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO build | tail -5
 app=build/Build/Products/Release/MacDiskSleuth.app
 codesign --verify --deep --strict --verbose=2 "$app"
 
