@@ -32,4 +32,4 @@ jobs:
       - name: Generate project
         run: xcodegen generate --spec App/project.yml --project App
       - name: Build
-        run: xcodebuild -project App/DiskSleuth.xcodeproj -scheme DiskSleuth -configuration Release build CODE_SIGNING_ALLOWED=NO
+        run: xcodebuild -project App/MacDiskSleuth.xcodeproj -scheme MacDiskSleuth -configuration Release build CODE_SIGNING_ALLOWED=NO

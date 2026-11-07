@@ -1,4 +1,4 @@
-import DiskSleuthKit
+import MacDiskSleuthKit
 import SwiftUI
 
 struct ResultsView: View {

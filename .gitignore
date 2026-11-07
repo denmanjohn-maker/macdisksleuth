@@ -6,6 +6,6 @@ DerivedData/
 .swiftpm/
 .netrc
 # XcodeGen output — regenerate with `make generate`
-App/DiskSleuth.xcodeproj
-App/DiskSleuth-Info.plist
+App/MacDiskSleuth.xcodeproj
+App/MacDiskSleuth-Info.plist
 node_modules/

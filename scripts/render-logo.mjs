@@ -34,7 +34,7 @@ await png(32, "site/favicon-32.png");
 // 1200x630 social card
 const card = `<body style="margin:0;width:1200px;height:630px;display:flex;align-items:center;gap:48px;padding:0 90px;box-sizing:border-box;background:linear-gradient(135deg,#0b1226,#13294b);font-family:-apple-system,Helvetica,Arial,sans-serif;color:#f5f5f7">
 <div style="width:380px;height:380px;flex:none">${svg.replace(/width="1024" height="1024"/, 'width="380" height="380"')}</div>
-<div><div style="font-size:84px;font-weight:700;letter-spacing:-1px">DiskSleuth</div>
+<div><div style="font-size:84px;font-weight:700;letter-spacing:-1px">MacDiskSleuth</div>
 <div style="font-size:34px;color:#a9b4cc;margin-top:12px;max-width:560px;line-height:1.3">The disk analyzer that tells you the truth on APFS.</div></div></body>`;
 await png({ w: 1200, h: 630 }, "site/og.png", card);
 await browser.close();

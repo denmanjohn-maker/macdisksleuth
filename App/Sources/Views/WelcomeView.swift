@@ -1,4 +1,4 @@
-import DiskSleuthKit
+import MacDiskSleuthKit
 import SwiftUI
 
 struct WelcomeView: View {
@@ -15,7 +15,7 @@ struct WelcomeView: View {
                     .interpolation(.high)
                     .frame(width: type.size(88), height: type.size(88))
                     .accessibilityHidden(true)
-                Text("DiskSleuth").font(type.largeTitle.bold())
+                Text("MacDiskSleuth").font(type.largeTitle.bold())
                 Text("The disk analyzer that tells you the truth on APFS.")
                     .font(type.body)
                     .foregroundStyle(.secondary)

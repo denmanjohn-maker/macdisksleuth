@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DiskSleuth</title>
+<title>MacDiskSleuth</title>
 <meta name="description" content="The disk analyzer that tells you the truth on APFS: logical, physical, and freeable sizes for macOS.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta property="og:title" content="DiskSleuth">
+<meta property="og:title" content="MacDiskSleuth">
 <meta property="og:image" content="https://denmanjohn-maker.github.io/macdisksleuth/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta property="og:description" content="The disk analyzer that tells you the truth on APFS.">
@@ -42,7 +42,7 @@ a{color:var(--accent)}
 <main>
 <header>
   <img class="logo" src="logo.svg" alt="" width="120" height="120">
-  <h1>DiskSleuth</h1>
+  <h1>MacDiskSleuth</h1>
   <p class="lede">The disk analyzer that tells you the truth on APFS. It reports what is really on disk, and what deleting something will really free.</p>
   <div class="btns">
     <a class="btn primary" href="https://github.com/denmanjohn-maker/macdisksleuth/releases/latest">Download</a>
@@ -59,32 +59,32 @@ a{color:var(--accent)}
   <div class="card"><h3>Physical</h3><p>What the disk actually holds. Clones, hard links, sparse ranges and compression are counted once.</p></div>
   <div class="card"><h3>Freeable</h3><p>What deleting this would give back right now.</p></div>
 </div>
-<div class="example">An 8 GB video that is a clone of another file shows <strong>8 GB logical, about 0 freeable</strong>, because deleting it frees almost nothing. DiskSleuth tells you that before you empty the Trash and wonder where your space went.</div>
+<div class="example">An 8 GB video that is a clone of another file shows <strong>8 GB logical, about 0 freeable</strong>, because deleting it frees almost nothing. MacDiskSleuth tells you that before you empty the Trash and wonder where your space went.</div>
 
 <h2>What's in the box</h2>
 <ul>
-  <li><strong>DiskSleuth.app</strong>: a native SwiftUI app with an interactive sunburst, a size-lens toggle, and delete-to-Trash that shows true freeable bytes.</li>
-  <li><strong>disksleuth</strong>: a fast CLI with <code>scan</code>, <code>top</code>, <code>info</code>, <code>overview</code> and <code>snapshots</code>.</li>
-  <li><strong>Finder Quick Action</strong>: <em>Analyze with DiskSleuth</em> on any folder or volume.</li>
-  <li><strong>DiskSleuthKit</strong>: the shared engine, usable as a Swift package.</li>
+  <li><strong>MacDiskSleuth.app</strong>: a native SwiftUI app with an interactive sunburst, a size-lens toggle, and delete-to-Trash that shows true freeable bytes.</li>
+  <li><strong>macdisksleuth</strong>: a fast CLI with <code>scan</code>, <code>top</code>, <code>info</code>, <code>overview</code> and <code>snapshots</code>.</li>
+  <li><strong>Finder Quick Action</strong>: <em>Analyze with MacDiskSleuth</em> on any folder or volume.</li>
+  <li><strong>MacDiskSleuthKit</strong>: the shared engine, usable as a Swift package.</li>
 </ul>
 <p>It is built on <code>getattrlistbulk</code> with APFS extended attributes, the fast path, with per-file clone, sparse and dataless awareness. It opens no files, so iCloud placeholders are never downloaded.</p>
 
 <h2>Quick tour</h2>
-<pre><code>disksleuth info ~/Movies/render.mov   # 3 sizes, clone family, "deleting frees X"
-disksleuth scan ~ --top 15            # biggest items, honest sizes
-disksleuth overview                   # capacity, purgeable space, snapshots
-disksleuth snapshots                  # what Time Machine is still holding
-disksleuth top ~ --only clone --sort freeable,logical</code></pre>
-<p>Grant your terminal Full Disk Access for complete results. DiskSleuth records every folder it couldn't read and says so, rather than silently under-counting.</p>
+<pre><code>macdisksleuth info ~/Movies/render.mov   # 3 sizes, clone family, "deleting frees X"
+macdisksleuth scan ~ --top 15            # biggest items, honest sizes
+macdisksleuth overview                   # capacity, purgeable space, snapshots
+macdisksleuth snapshots                  # what Time Machine is still holding
+macdisksleuth top ~ --only clone --sort freeable,logical</code></pre>
+<p>Grant your terminal Full Disk Access for complete results. MacDiskSleuth records every folder it couldn't read and says so, rather than silently under-counting.</p>
 
 <h2>Install</h2>
 <p>Requires macOS 14 or later. Download the app zip or the command-line tarball from the <a href="https://github.com/denmanjohn-maker/macdisksleuth/releases/latest">latest release</a>, or build from source:</p>
 <pre><code>git clone https://github.com/denmanjohn-maker/macdisksleuth.git
 cd macdisksleuth
 swift build -c release
-.build/release/disksleuth --help</code></pre>
-<p>Release builds are not notarized yet. Try to open the app once; if macOS blocks it, go to System Settings → Privacy &amp; Security and click <strong>Open Anyway</strong>. Or clear the quarantine flag from Terminal: <code>xattr -dr com.apple.quarantine DiskSleuth.app</code>.</p>
+.build/release/macdisksleuth --help</code></pre>
+<p>Release builds are not notarized yet. Try to open the app once; if macOS blocks it, go to System Settings → Privacy &amp; Security and click <strong>Open Anyway</strong>. Or clear the quarantine flag from Terminal: <code>xattr -dr com.apple.quarantine MacDiskSleuth.app</code>.</p>
 
 <footer>
   MIT licensed. <a href="https://github.com/denmanjohn-maker/macdisksleuth/blob/main/docs/truth-engine.md">How the accounting works</a>
