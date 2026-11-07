@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DiskSleuth</title>
+<meta name="description" content="The disk analyzer that tells you the truth on APFS: logical, physical, and freeable sizes for macOS.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:title" content="DiskSleuth">
+<meta property="og:image" content="https://denmanjohn-maker.github.io/macdisksleuth/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:description" content="The disk analyzer that tells you the truth on APFS.">
+<style>
+:root{--bg:#fff;--fg:#1d1d1f;--muted:#6e6e73;--card:#f5f5f7;--line:#d2d2d7;--accent:#0a64d6;--accent-fg:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#111113;--fg:#f5f5f7;--muted:#a1a1a6;--card:#1c1c1f;--line:#38383c;--accent:#4c9aff;--accent-fg:#06121f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:0 16px 64px}
+header{padding:48px 0 32px}
+.logo{display:block;margin:0 0 8px -12px}
+h1{font-size:clamp(2.2rem,6vw,3.4rem);line-height:1.1;margin:0 0 12px}
+h2{font-size:1.5rem;margin:48px 0 12px}
+.lede{font-size:1.2rem;color:var(--muted);margin:0 0 24px;max-width:36em}
+.btns{display:flex;flex-wrap:wrap;gap:12px}
+a.btn{display:inline-block;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:600;border:1px solid var(--line);color:var(--fg)}
+a.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.lenses{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.card{background:var(--card);border-radius:14px;padding:16px 18px}
+.card h3{margin:0 0 4px;font-size:1.05rem}
+.card p{margin:0;color:var(--muted);font-size:.95rem}
+.example{background:var(--card);border-left:4px solid var(--accent);border-radius:8px;padding:12px 16px;margin:16px 0}
+ul{padding-left:1.2em}
+pre{background:var(--card);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:.88rem;line-height:1.5}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+footer{margin-top:56px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:16px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <img class="logo" src="logo.svg" alt="" width="120" height="120">
+  <h1>DiskSleuth</h1>
+  <p class="lede">The disk analyzer that tells you the truth on APFS. It reports what is really on disk, and what deleting something will really free.</p>
+  <div class="btns">
+    <a class="btn primary" href="https://github.com/denmanjohn-maker/macdisksleuth/releases/latest">Download</a>
+    <a class="btn" href="https://github.com/denmanjohn-maker/macdisksleuth">Source on GitHub</a>
+  </div>
+</header>
+
+<h2>Why another disk analyzer?</h2>
+<p>Popular disk-usage tools were designed for a filesystem Apple stopped shipping years ago. On modern macOS, copy-on-write clones get double-counted, hard links inflate totals, sparse and compressed files report sizes they don't occupy, and Time Machine local snapshots quietly hold on to space you thought you freed. The numbers don't match Finder, and deletions don't give you your disk back.</p>
+
+<h2>Three honest size lenses</h2>
+<div class="lenses">
+  <div class="card"><h3>Logical</h3><p>What the files claim to be. What most tools show.</p></div>
+  <div class="card"><h3>Physical</h3><p>What the disk actually holds. Clones, hard links, sparse ranges and compression are counted once.</p></div>
+  <div class="card"><h3>Freeable</h3><p>What deleting this would give back right now.</p></div>
+</div>
+<div class="example">An 8 GB video that is a clone of another file shows <strong>8 GB logical, about 0 freeable</strong>, because deleting it frees almost nothing. DiskSleuth tells you that before you empty the Trash and wonder where your space went.</div>
+
+<h2>What's in the box</h2>
+<ul>
+  <li><strong>DiskSleuth.app</strong>: a native SwiftUI app with an interactive sunburst, a size-lens toggle, and delete-to-Trash that shows true freeable bytes.</li>
+  <li><strong>disksleuth</strong>: a fast CLI with <code>scan</code>, <code>top</code>, <code>info</code>, <code>overview</code> and <code>snapshots</code>.</li>
+  <li><strong>Finder Quick Action</strong>: <em>Analyze with DiskSleuth</em> on any folder or volume.</li>
+  <li><strong>DiskSleuthKit</strong>: the shared engine, usable as a Swift package.</li>
+</ul>
+<p>It is built on <code>getattrlistbulk</code> with APFS extended attributes, the fast path, with per-file clone, sparse and dataless awareness. It opens no files, so iCloud placeholders are never downloaded.</p>
+
+<h2>Quick tour</h2>
+<pre><code>disksleuth info ~/Movies/render.mov   # 3 sizes, clone family, "deleting frees X"
+disksleuth scan ~ --top 15            # biggest items, honest sizes
+disksleuth overview                   # capacity, purgeable space, snapshots
+disksleuth snapshots                  # what Time Machine is still holding
+disksleuth top ~ --only clone --sort freeable,logical</code></pre>
+<p>Grant your terminal Full Disk Access for complete results. DiskSleuth records every folder it couldn't read and says so, rather than silently under-counting.</p>
+
+<h2>Install</h2>
+<p>Requires macOS 14 or later. Download the app zip or the command-line tarball from the <a href="https://github.com/denmanjohn-maker/macdisksleuth/releases/latest">latest release</a>, or build from source:</p>
+<pre><code>git clone https://github.com/denmanjohn-maker/macdisksleuth.git
+cd macdisksleuth
+swift build -c release
+.build/release/disksleuth --help</code></pre>
+<p>Release builds are not notarized yet. Try to open the app once; if macOS blocks it, go to System Settings → Privacy &amp; Security and click <strong>Open Anyway</strong>. Or clear the quarantine flag from Terminal: <code>xattr -dr com.apple.quarantine DiskSleuth.app</code>.</p>
+
+<footer>
+  MIT licensed. <a href="https://github.com/denmanjohn-maker/macdisksleuth/blob/main/docs/truth-engine.md">How the accounting works</a>
+</footer>
+</main>
+</body>
+</html>

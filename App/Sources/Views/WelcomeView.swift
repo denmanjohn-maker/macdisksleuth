@@ -10,9 +10,11 @@ struct WelcomeView: View {
             Spacer()
 
             VStack(spacing: 6) {
-                Image(systemName: "internaldrive.fill")
-                    .font(.system(size: type.size(44)))
-                    .foregroundStyle(.tint)
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: type.size(88), height: type.size(88))
+                    .accessibilityHidden(true)
                 Text("DiskSleuth").font(type.largeTitle.bold())
                 Text("The disk analyzer that tells you the truth on APFS.")
                     .font(type.body)

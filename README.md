@@ -1,3 +1,5 @@
+<p align="center"><img src="branding/logo.svg" alt="DiskSleuth logo" width="140"></p>
+
 # DiskSleuth
 
 **The disk analyzer that tells you the truth on APFS.**
@@ -51,7 +53,7 @@ make xcode              # or: generate the project and open it in Xcode
 2. If the item doesn't appear, turn it on in **System Settings → Keyboard → Keyboard Shortcuts… → Services → Files and Folders**.
 3. Still missing? Refresh the services cache: `/System/Library/CoreServices/pbs -update`, then relaunch Finder (⌥-right-click the Dock icon → Relaunch).
 
-Homebrew formula/cask: coming soon.
+Project page: <https://denmanjohn-maker.github.io/macdisksleuth/>. Prebuilt binaries are on the [Releases](https://github.com/denmanjohn-maker/macdisksleuth/releases) page (see [RELEASING.md](RELEASING.md)). Homebrew formula/cask: coming soon.
 
 ## Quick tour
 

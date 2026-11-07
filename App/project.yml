@@ -34,7 +34,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jdenman.disksleuth
         PRODUCT_NAME: DiskSleuth
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.1.0-rc1"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
         CODE_SIGN_IDENTITY: "-"
@@ -44,5 +44,6 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_NSHumanReadableCopyright: "MIT License — github.com/denmanjohn-maker/macdisksleuth"
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         COMBINE_HIDPI_IMAGES: YES
         DEAD_CODE_STRIPPING: YES

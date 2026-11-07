@@ -8,3 +8,4 @@ DerivedData/
 # XcodeGen output — regenerate with `make generate`
 App/DiskSleuth.xcodeproj
 App/DiskSleuth-Info.plist
+node_modules/
