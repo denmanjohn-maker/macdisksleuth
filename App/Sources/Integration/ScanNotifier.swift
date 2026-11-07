@@ -21,7 +21,8 @@ enum ScanNotifier {
             content.title = "Scan complete"
             content.body = "Nothing obvious to delete in \(lastComponent(scannedPath))."
         } else {
-            content.title = "Up to \(ByteCount.format(report.totalFreeable)) can be freed"
+            let shown = top.reduce(Int64(0)) { $0 + $1.freeable }
+            content.title = "Up to \(ByteCount.format(shown)) can be freed"
             content.subtitle = lastComponent(scannedPath)
             content.body = top.enumerated()
                 .map { "\($0.offset + 1). \($0.element.title) — \(ByteCount.format($0.element.freeable))" }

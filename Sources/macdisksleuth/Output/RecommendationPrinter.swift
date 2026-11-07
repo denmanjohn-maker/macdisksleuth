@@ -123,9 +123,10 @@ struct RecommendationPrinter {
     /// "Up to 41.2 GB can be freed" with the top three finds.
     static func notify(report: RecommendationReport, scannedPath: String) async {
         let top = report.recommendations.prefix(3)
+        let shown = top.reduce(Int64(0)) { $0 + $1.freeable }
         let title = top.isEmpty
             ? "Scan complete — nothing obvious to delete"
-            : "Up to \(ByteCount.format(report.totalFreeable)) can be freed"
+            : "Up to \(ByteCount.format(shown)) can be freed"
         let body = top.isEmpty
             ? scannedPath
             : top.enumerated().map { "\($0.offset + 1). \($0.element.title) — \(ByteCount.format($0.element.freeable))" }

@@ -133,7 +133,7 @@ private struct Engine {
         return RecommendationReport(
             recommendations: top,
             totalFreeable: top.reduce(Int64(0)) { $0 + $1.freeable },
-            consideredCount: all.count,
+            consideredCount: all.count,  // everything that cleared the size floor
             notes: notes,
             generatedAt: context.now)
     }
@@ -406,7 +406,7 @@ private struct Engine {
             category: rule.category, title: rule.title, safety: rule.safety,
             reason: rule.reason, action: rule.action,
             node: candidate.node, members: found,
-            canMoveToTrash: !asChildren && candidate.node != graph.root)
+            canMoveToTrash: !asChildren && candidate.node != graph.root && Self.trashable(rule.category))
     }
 
     private func groupRecommendation(_ key: String, _ candidates: [Candidate]) -> Recommendation? {
@@ -429,7 +429,16 @@ private struct Engine {
             category: category, title: group.title, safety: safety,
             reason: group.reason, action: group.action,
             node: singleNode ? candidates[0].node : nil, members: found,
-            canMoveToTrash: singleNode)
+            canMoveToTrash: singleNode && Self.trashable(category))
+    }
+
+    /// Categories whose advice is "prune from inside the tool" or "let macOS
+    /// handle it" never get a Move to Trash button, however single the node.
+    private static func trashable(_ category: CleanupCategory) -> Bool {
+        switch category {
+        case .systemManaged, .containers: false
+        default: true
+        }
     }
 
     private func genericRecommendation(_ candidate: Candidate) -> Recommendation? {

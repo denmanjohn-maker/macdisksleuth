@@ -95,12 +95,6 @@ final class PathPatternTrie {
         states.flatMap(\.payloads)
     }
 
-    /// Pattern components that must be matched before any further payload
-    /// can be reached. False means nothing deeper can match: descent is pointless.
-    func canMatchDeeper(_ states: [Node]) -> Bool {
-        states.contains { !$0.literal.isEmpty || !$0.globs.isEmpty || $0.anyDepth != nil }
-    }
-
     // MARK: - Internals
 
     /// Add `**` nodes reachable without consuming a component, deduplicated.

@@ -62,7 +62,7 @@ public struct PermissionLedger: Sendable, Codable {
 }
 
 /// Immutable scan result: the whole tree in struct-of-arrays form.
-/// ~46 bytes per node plus name bytes — millions of files fit comfortably.
+/// ~54 bytes per node plus name bytes — millions of files fit comfortably.
 public struct FileGraph: Sendable {
     // Hot parallel arrays, indexed by NodeID.raw.
     var nameArena: [UInt8]

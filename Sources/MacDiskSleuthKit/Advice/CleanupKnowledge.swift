@@ -290,7 +290,7 @@ enum CleanupKnowledge {
                 patterns: patterns, group: "package-caches")
         }
         rules.append(cache(["~/.npm"], title: "npm cache", action: "npm cache clean --force"))
-        rules.append(cache(["~/.yarn/cache", "~/.yarn/berry/cache", "~/Library/Caches/Yarn"], title: "Yarn cache", action: "yarn cache clean"))
+        rules.append(cache(["~/.yarn/cache", "~/.yarn/berry/cache"], title: "Yarn cache", action: "yarn cache clean"))
         rules.append(cache(["~/.pnpm-store", "~/Library/pnpm"], title: "pnpm store", action: "pnpm store prune"))
         rules.append(cache(["~/.bun/install/cache"], title: "Bun cache", action: "bun pm cache rm"))
         rules.append(cache(["~/.gradle/caches", "~/.gradle/wrapper/dists"], title: "Gradle caches", action: "rm -rf ~/.gradle/caches  (Gradle re-downloads on the next build)"))

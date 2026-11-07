@@ -177,13 +177,15 @@ final class AppModel {
     // MARK: - Recommendations
 
     /// Rank what to delete, off the main thread (the graph may hold millions
-    /// of nodes). `announce` also posts the system notification.
+    /// of nodes). `announce` marks a fresh scan: the old list is dropped at
+    /// once and the system notification is posted. After an edit (a trash),
+    /// the previous list stays visible until the new one arrives.
     func refreshRecommendations(announce: Bool = false) {
         guard let graph else {
             recommendations = nil
             return
         }
-        recommendations = nil
+        if announce { recommendations = nil }
         let generation = scanGeneration
         let stamp = graphStamp
         let context = RecommendationContext(

@@ -166,7 +166,7 @@ public struct RecommendationReport: Sendable {
     public var recommendations: [Recommendation]
     /// Sum of freeable bytes across the recommendations shown.
     public var totalFreeable: Int64
-    /// Candidates examined before ranking and truncation.
+    /// Candidates that cleared the size floor, before ranking and truncation.
     public var consideredCount: Int
     /// Report-level honesty notes (skipped clones, unreadable folders, snapshots).
     public var notes: [String]
