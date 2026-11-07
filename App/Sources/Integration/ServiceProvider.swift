@@ -37,12 +37,17 @@ final class ServiceProvider: NSObject {
     /// WindowGroup window yet. The scan state lives in the shared model, so a
     /// late window still shows it — but retry briefly so it also comes forward.
     private func bringMainWindowForward(retries: Int = 10) {
-        NSApp.activate()
-        if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
-            window.makeKeyAndOrderFront(nil)
+        // The results window, reopened if only a recommendation window is left.
+        if model.showResultsWindow() { return }
+        guard retries > 0 else {
+            // Window identifiers are an undocumented convention; as a last
+            // resort take any window that is not a recommendation window.
+            NSApp.activate()
+            if let window = NSApp.windows.first(where: { $0.canBecomeMain && !AppModel.isRecommendationWindow($0) }) {
+                window.makeKeyAndOrderFront(nil)
+            }
             return
         }
-        guard retries > 0 else { return }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(50))
             self.bringMainWindowForward(retries: retries - 1)

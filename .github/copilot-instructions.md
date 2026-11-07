@@ -75,6 +75,15 @@ A clone family (one cloneID) is the set of files wholly sharing extents; it is c
 - Output is human-readable by default, bar-charted, and machine-readable with `--json`.
 - Destructive actions (`--remove-snapshots`) require `--dry-run` first and usually `sudo`.
 
+### App conventions
+
+- Two `WindowGroup`s in `App/Sources/MacDiskSleuthApp.swift`: `main` (results; first so ⌘N maps to it) and `recommendation`, keyed by `Recommendation.id` via `WindowGroup(for: String.self)`; cards call `openWindow(value:)`. Every scene re-injects `AppModel.shared`, `\.typography`, and `\.font`.
+- `AppModel.shared` is the single model. Destructive actions go through `DeletionAuthenticator` (LocalAuthentication, `.deviceOwnerAuthentication`: Touch ID / Apple Watch / password) and then `AppModel.moveToTrash(_ nodes:from:)`, which refuses NodeIDs from a different `scanGeneration`, batches `FileManager.trashItem` off the main thread, patches the current graph once with `FileGraph.removing(all:)`, and recomputes recommendations. Nothing is ever deleted permanently.
+- Fix sheets are presented by `RecommendationsView` and `RecommendationWindowView` (`.sheet(item:)` on a `Recommendation` snapshot), never by a card or detail view, so the result summary survives the list recomputing. `FileGraph.isRemoved` is ancestor-aware; edits clamp sizes at 0 and keep unique ≤ physical, and shared-byte accounting is approximate until a rescan.
+- `AppModel.openWindow` is captured from SwiftUI by `RootView` / `RecommendationWindowView`; `AppModel.showResultsWindow()` brings the results window forward or reopens it (used by the Finder Quick Action and "Show Here").
+- `Recommendation.isFixable` / `preselectedItemIDs` / `CleanupCategory.membersAreTrashable` (Kit) decide what the Fix flow offers and pre-checks; keep that logic in the Kit so `swift test` covers it.
+- `applicationShouldTerminateAfterLastWindowClosed` stays `true`; recommendation windows count as windows.
+
 ## Repo layout
 
 - `Sources/MacDiskSleuthKit/` — library.

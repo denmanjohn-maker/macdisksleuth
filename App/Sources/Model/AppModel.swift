@@ -76,7 +76,13 @@ final class AppModel {
 
     private var session: ScanSession?
     /// Guards against a cancelled scan's late result clobbering a newer one.
-    private var scanGeneration = 0
+    /// Views that snapshot NodeIDs (the Fix sheet) pin them to this value:
+    /// ids stay valid across edits of one scan, never across a rescan.
+    private(set) var scanGeneration = 0
+
+    /// SwiftUI's window opener, captured by whichever scene appears first, so
+    /// AppKit-side code (the Finder Quick Action) can reopen the results window.
+    var openWindow: OpenWindowAction?
 
     var windowTitle: String {
         switch phase {
@@ -292,6 +298,32 @@ final class AppModel {
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: graph.path(of: node))])
     }
 
+    // MARK: - Windows
+
+    /// Bring the results window forward, reopening it if the user closed it
+    /// while a recommendation window stayed open. False when no results window
+    /// exists and no scene has handed us `openWindow` yet (cold launch).
+    @discardableResult
+    func showResultsWindow() -> Bool {
+        NSApp.activate()
+        if let window = NSApp.windows.first(where: { $0.canBecomeMain && Self.isResultsWindow($0) }) {
+            window.makeKeyAndOrderFront(nil)
+            return true
+        }
+        guard let openWindow else { return false }
+        openWindow(id: MacDiskSleuthApp.mainWindowID)
+        return true
+    }
+
+    /// SwiftUI names a scene's windows "<scene id>-AppWindow-N".
+    nonisolated static func isResultsWindow(_ window: NSWindow) -> Bool {
+        window.identifier?.rawValue.hasPrefix(MacDiskSleuthApp.mainWindowID) ?? false
+    }
+
+    nonisolated static func isRecommendationWindow(_ window: NSWindow) -> Bool {
+        window.identifier?.rawValue.hasPrefix(MacDiskSleuthApp.recommendationWindowID) ?? false
+    }
+
     /// Move to Trash and patch the graph. Returns an error message, or nil on success.
     func moveToTrash(_ node: NodeID) -> String? {
         guard let graph else { return "No scan loaded." }
@@ -312,6 +344,74 @@ final class AppModel {
         return nil
     }
 
+    /// Move several items to the Trash in one go (the Fix flow), then patch
+    /// the graph once. `generation` is the `scanGeneration` the NodeIDs came
+    /// from: a rescan since then means they name other files, so nothing is
+    /// touched. Items already removed count as moved with nothing freed; a
+    /// file that vanished since the scan counts the same way.
+    func moveToTrash(_ nodes: [NodeID], from generation: Int) async -> BatchTrashResult {
+        guard let graph, generation == scanGeneration else {
+            let message =
+                graph == nil
+                ? "No scan loaded."
+                : "The scan changed since this list was built; nothing was moved. Open Fix again."
+            return BatchTrashResult(failures: nodes.map { TrashFailure(node: $0, path: "", message: message) })
+        }
+
+        var result = BatchTrashResult()
+        var pending: [TrashWorkItem] = []
+        var seen: Set<NodeID> = []
+        for node in nodes where seen.insert(node).inserted {
+            if graph.isRemoved(node) {
+                result.trashed.append(node)
+            } else {
+                pending.append(
+                    TrashWorkItem(node: node, path: graph.path(of: node), unique: graph.sizes(of: node).unique))
+            }
+        }
+
+        // Trashing fifty items is fifty Finder round trips; keep the UI responsive.
+        let work = pending
+        let outcomes = await Task.detached(priority: .userInitiated) { () -> [TrashOutcome] in
+            work.map { item in
+                do {
+                    try FileManager.default.trashItem(at: URL(fileURLWithPath: item.path), resultingItemURL: nil)
+                    return TrashOutcome(node: item.node, path: item.path, freed: item.unique, error: nil)
+                } catch let error as CocoaError where error.code == .fileNoSuchFile || error.code == .fileReadNoSuchFile {
+                    return TrashOutcome(node: item.node, path: item.path, freed: 0, error: nil)
+                } catch {
+                    return TrashOutcome(node: item.node, path: item.path, freed: 0, error: error.localizedDescription)
+                }
+            }
+        }.value
+
+        var trashedNow: [NodeID] = []
+        for outcome in outcomes {
+            if let message = outcome.error {
+                result.failures.append(TrashFailure(node: outcome.node, path: outcome.path, message: message))
+            } else {
+                trashedNow.append(outcome.node)
+                result.freed += outcome.freed
+            }
+        }
+        result.trashed.append(contentsOf: trashedNow)
+
+        // A rescan that landed meanwhile already reflects the disk; never patch
+        // a stale graph. Edits of the same scan (an inspector delete) keep
+        // NodeIDs valid, so the current graph is patched regardless of them.
+        guard scanGeneration == generation, let current = self.graph, !trashedNow.isEmpty
+        else { return result }
+        for node in trashedNow where focus == node || isDescendant(focus, of: node) {
+            focus = current.parent(of: node) ?? current.root
+        }
+        self.graph = current.removing(all: trashedNow)
+        graphStamp += 1
+        if let selection, trashedNow.contains(selection) { self.selection = nil }
+        if let hovered, trashedNow.contains(hovered) { self.hovered = nil }
+        refreshRecommendations()
+        return result
+    }
+
     private func isDescendant(_ node: NodeID, of ancestor: NodeID) -> Bool {
         guard let graph else { return false }
         var current: NodeID? = node
@@ -321,6 +421,35 @@ final class AppModel {
         }
         return false
     }
+}
+
+/// One member a batch trash could not move.
+struct TrashFailure: Sendable, Identifiable {
+    var id: NodeID { node }
+    var node: NodeID
+    var path: String
+    var message: String
+}
+
+/// Outcome of a batch trash: what moved, what didn't, and the honest
+/// freeable total of what moved.
+struct BatchTrashResult: Sendable {
+    var trashed: [NodeID] = []
+    var failures: [TrashFailure] = []
+    var freed: Int64 = 0
+}
+
+private struct TrashWorkItem: Sendable {
+    var node: NodeID
+    var path: String
+    var unique: Int64
+}
+
+private struct TrashOutcome: Sendable {
+    var node: NodeID
+    var path: String
+    var freed: Int64
+    var error: String?
 }
 
 func errnoString2(_ code: Int32) -> String {
