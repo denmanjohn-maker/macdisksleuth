@@ -11,10 +11,14 @@ struct Scan: AsyncParsableCommand {
             each folder's "… N more" line, so every total stays the true total.
             For filtered rankings (extensions, clones, sorting), use `macdisksleuth top`.
 
+            After the tree, the top 5 things to delete are listed, ranked by what deleting
+            really frees (see `macdisksleuth recommend --help`). --recommendations 0 hides them.
+
             Examples:
               macdisksleuth scan ~ --depth 3 --top 15
               macdisksleuth scan ~ --size-mode freeable --min-size 1GB
               macdisksleuth scan / --exclude 'Library' --exclude '.*'
+              macdisksleuth scan ~ --recommendations 10 --notify
             """
     )
 
@@ -54,6 +58,16 @@ struct Scan: AsyncParsableCommand {
     @Flag(name: .customLong("si"), help: "Use binary units (GiB) instead of decimal (GB).")
     var binaryUnits = false
 
+    @Option(name: .customLong("recommendations"), help: "Cleanup recommendations to list after the tree (0 to hide).")
+    var recommendations: Int = 5
+
+    @Flag(name: .customLong("notify"), help: "Post a macOS notification with the top recommendations when the scan finishes.")
+    var notify = false
+
+    func validate() throws {
+        if recommendations < 0 { throw ValidationError("--recommendations must be 0 or more.") }
+    }
+
     func run() async throws {
         let target = (path as NSString).expandingTildeInPath
         var options = ScanOptions()
@@ -61,20 +75,33 @@ struct Scan: AsyncParsableCommand {
         options.forceFallback = forceFallback
         if let concurrency { options.maxConcurrency = concurrency }
 
-        // Snapshot presence is fetched concurrently with the scan; it changes
-        // what "freeable" means for the caveat line.
-        let snapshotTask = Task { () -> Int in
-            let mount = (try? VolumeService.identity(ofPath: target))?.mountPoint ?? "/"
-            return ((try? await VolumeService.snapshots(ofVolume: mount)) ?? []).count
-        }
+        // Volume facts are fetched concurrently with the scan: snapshots change
+        // what "freeable" means for the caveat line, and purgeable space feeds
+        // the recommendations.
+        let factsTask = Task { await VolumeFacts.gather(forPath: target) }
 
         let result = try await ScanRunner.run(path: target, options: options)
-        let snapshotCount = await snapshotTask.value
+        let facts = await factsTask.value
+        let snapshotCount = facts.snapshots.count
+
+        // The notification always names the top three; the printed list is
+        // exactly what --recommendations asked for.
+        let context = RecommendationContext(
+            limit: max(recommendations, notify ? 3 : 0),
+            snapshots: facts.snapshots, purgeableBytes: facts.purgeable,
+            volumeMountPoint: facts.mountPoint)
+        let fullReport: RecommendationReport? =
+            recommendations > 0 || notify
+            ? Recommender.recommend(graph: result.graph, context: context) : nil
+        let report = fullReport?.limited(to: recommendations)
 
         if json {
-            try printJSON(result: result, snapshotCount: snapshotCount)
+            try printJSON(result: result, snapshotCount: snapshotCount, report: report)
         } else {
-            printHuman(result: result, snapshotCount: snapshotCount)
+            printHuman(result: result, snapshotCount: snapshotCount, report: report, context: context)
+        }
+        if notify, let fullReport {
+            await RecommendationPrinter.notify(report: fullReport, scannedPath: result.graph.rootPath)
         }
     }
 
@@ -91,7 +118,9 @@ struct Scan: AsyncParsableCommand {
         ByteCount.format(bytes, binary: binaryUnits)
     }
 
-    private func printHuman(result: ScanResult, snapshotCount: Int) {
+    private func printHuman(
+        result: ScanResult, snapshotCount: Int, report: RecommendationReport?, context: RecommendationContext
+    ) {
         let style = Style(noColor: noColor)
         let graph = result.graph
         let summary = graph.summary
@@ -137,6 +166,11 @@ struct Scan: AsyncParsableCommand {
         if summary.usedFallback {
             print(style.dim("(slow directory-listing fallback was used on this filesystem)"))
         }
+        if let report, recommendations > 0 {
+            print()
+            RecommendationPrinter(report: report, context: context, style: style, binaryUnits: binaryUnits)
+                .printReport()
+        }
     }
 
     private struct JSONNode: Codable {
@@ -150,9 +184,9 @@ struct Scan: AsyncParsableCommand {
         var collapsedChildren: Int?
     }
 
-    private func printJSON(result: ScanResult, snapshotCount: Int) throws {
+    private func printJSON(result: ScanResult, snapshotCount: Int, report: RecommendationReport?) throws {
         struct Payload: Codable {
-            var schemaVersion = 1
+            var schemaVersion = 2
             var root: String
             var filesystem: String
             var files: Int
@@ -169,6 +203,7 @@ struct Scan: AsyncParsableCommand {
             var partial: Bool
             var wallSeconds: Double
             var tree: JSONNode
+            var recommendations: RecommendationReportJSON?
         }
 
         let graph = result.graph
@@ -189,10 +224,12 @@ struct Scan: AsyncParsableCommand {
             localSnapshots: snapshotCount,
             partial: summary.partial,
             wallSeconds: summary.wallSeconds,
-            tree: jsonNode(graph: graph, node: graph.root, depth: 0, shown: displayFilter)
+            tree: jsonNode(graph: graph, node: graph.root, depth: 0, shown: displayFilter),
+            recommendations: recommendations > 0 ? report.map { RecommendationReportJSON(report: $0) } : nil
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
         print(String(decoding: try encoder.encode(payload), as: UTF8.self))
     }
 

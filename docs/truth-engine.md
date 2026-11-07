@@ -108,3 +108,23 @@ macdisksleuth info clone.bin     # "Deleting frees ~0 B now"
 The test suite builds real fixtures — `clonefile(2)`, `link(2)`, sparse files,
 permission-denied directories — and asserts the engine's numbers against the
 kernel's own (`st_blocks`, `PRIVATESIZE`) on every run.
+
+## Recommendations are held to the same standard
+
+`macdisksleuth recommend` (and the list after every `scan`) ranks what to delete
+first. It inherits every rule above:
+
+- Everything is ranked by **freeable** bytes. A 20 GB clone that would free
+  40 MB never appears; it is counted and reported as *skipped*.
+- Shared bytes that would stay on disk, unreadable folders that hide the real
+  size, and sparse claims are stated as caveats on the recommendation.
+- Local snapshots and purgeable space are reported from the volume, with the
+  reminder that macOS does not report per-snapshot sizes.
+- Nothing is deleted. Each recommendation carries a safety level — *safe*
+  (regenerates itself), *likely safe*, *review first* — and the command or menu
+  path that reclaims it.
+
+Staleness comes from `ATTR_CMN_MODTIME`, rolled up so every folder knows the
+newest change anywhere inside it. The ranking applies it per member: a cache
+folder always has something written today, but the parts nobody touched in a
+year still earn full credit.

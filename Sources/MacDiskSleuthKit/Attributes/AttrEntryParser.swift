@@ -9,7 +9,8 @@ import Darwin
 ///     ...attributes, canonical order, only those present in `returned`
 ///
 /// Attributes pack in ascending bit order within each group, groups in order
-/// common → dir → file → fork(CMNEXT). Every field is 4-byte aligned, so 8-byte
+/// common → dir → file → fork(CMNEXT): NAME, OBJTYPE, MODTIME, FLAGS, FILEID for
+/// the common set requested here. Every field is 4-byte aligned, so 8-byte
 /// values must be read with loadUnaligned. Variable-length data (names) is
 /// stored out-of-line and referenced by an attrreference_t whose offset is
 /// relative to the attrreference's own location.
@@ -75,6 +76,12 @@ enum AttrEntryParser {
             guard canRead(4) else { return entry }
             entry.objType = base.loadUnaligned(fromByteOffset: offset, as: UInt32.self)
             offset += 4
+        }
+        if returned.hasCommon(AttrBits.cmnModTime) {
+            // struct timespec: tv_sec (8 bytes) + tv_nsec (8 bytes) on 64-bit Darwin.
+            guard canRead(16) else { return entry }
+            entry.modified = base.loadUnaligned(fromByteOffset: offset, as: Int64.self)
+            offset += 16
         }
         if returned.hasCommon(AttrBits.cmnFlags) {
             guard canRead(4) else { return entry }

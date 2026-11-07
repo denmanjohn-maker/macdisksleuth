@@ -9,7 +9,7 @@ struct MacDiskSleuth: AsyncParsableCommand {
         abstract: "The disk analyzer that tells you the truth on APFS.",
         version: MacDiskSleuthVersion.string,
         subcommands: [
-            Scan.self, Top.self, Info.self, Overview.self, Snapshots.self,
+            Scan.self, Top.self, Recommend.self, Info.self, Overview.self, Snapshots.self,
             Schedule.self, Export.self, Diff.self, WhatIf.self, Cleanup.self,
         ]
     )

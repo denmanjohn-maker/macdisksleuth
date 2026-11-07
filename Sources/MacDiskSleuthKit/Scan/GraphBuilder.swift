@@ -25,6 +25,8 @@ actor GraphBuilder {
     private var physicalArr: [Int64] = []
     private var uniqueArr: [Int64] = []
     private var flagsArr: [UInt16] = []
+    /// Modification time in whole seconds since 1970 (0 = not reported).
+    private var modifiedArr: [UInt32] = []
 
     // Sharing registries, consumed at finalize.
     private struct HardlinkKey: Hashable {
@@ -61,8 +63,10 @@ actor GraphBuilder {
     private var progressPhysical: Int64 = 0
     private var lastPath = ""
 
-    func addRoot(name: String) -> Int32 {
-        appendNode(name: name, parent: -1, depth: 0, flags: NodeFlags(kind: .directory), logical: 0, physical: 0, unique: 0)
+    func addRoot(name: String, modified: Int64) -> Int32 {
+        appendNode(
+            name: name, parent: -1, depth: 0, flags: NodeFlags(kind: .directory),
+            logical: 0, physical: 0, unique: 0, modified: modified)
     }
 
     /// Append one batch of a directory's entries; returns the node IDs
@@ -112,7 +116,7 @@ actor GraphBuilder {
 
             let id = appendNode(
                 name: entry.name, parent: parent, depth: childDepth, flags: flags,
-                logical: logical, physical: physical, unique: unique)
+                logical: logical, physical: physical, unique: unique, modified: entry.modified)
             ids.append(id)
 
             if kind != .directory {
@@ -145,7 +149,7 @@ actor GraphBuilder {
 
     private func appendNode(
         name: String, parent: Int32, depth: UInt16, flags: NodeFlags,
-        logical: Int64, physical: Int64, unique: Int64
+        logical: Int64, physical: Int64, unique: Int64, modified: Int64
     ) -> Int32 {
         let id = Int32(parents.count)
         let utf8 = Array(name.utf8)
@@ -158,6 +162,7 @@ actor GraphBuilder {
         logicalArr.append(logical)
         physicalArr.append(physical)
         uniqueArr.append(unique)
+        modifiedArr.append(UInt32(clamping: max(modified, 0)))
         return id
     }
 
@@ -294,7 +299,10 @@ actor GraphBuilder {
         }
 
         // Bottom-up rollup. Nodes are appended parent-before-child, so reverse
-        // index order visits every child before its parent.
+        // index order visits every child before its parent. The same pass
+        // carries the newest modification time up, so every folder knows when
+        // anything inside it last changed.
+        var newestArr = modifiedArr
         if n > 1 {
             for i in stride(from: n - 1, through: 1, by: -1) {
                 let id = Int32(i)
@@ -304,6 +312,7 @@ actor GraphBuilder {
                 logicalArr[p] += logicalArr[i]
                 physicalArr[p] += physicalArr[i]
                 uniqueArr[p] += uniqueArr[i]
+                if newestArr[i] > newestArr[p] { newestArr[p] = newestArr[i] }
             }
         }
         if n > 0 {
@@ -336,6 +345,8 @@ actor GraphBuilder {
             physicalArr: physicalArr,
             uniqueArr: uniqueArr,
             flagsArr: flagsArr,
+            modifiedArr: modifiedArr,
+            newestArr: newestArr,
             childStart: childStart,
             childItems: childItems,
             rootPath: rootPath,

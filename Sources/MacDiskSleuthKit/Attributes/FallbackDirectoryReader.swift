@@ -44,6 +44,7 @@ final class FallbackDirectoryReader {
             entry.name = name
             entry.fileID = UInt64(status.st_ino)
             entry.bsdFlags = status.st_flags
+            entry.modified = Int64(status.st_mtimespec.tv_sec)
             entry.linkCount = UInt32(status.st_nlink)
             switch status.st_mode & S_IFMT {
             case S_IFDIR: entry.objType = ObjType.dir
@@ -60,7 +61,8 @@ final class FallbackDirectoryReader {
                 entry.physical = Int64(status.st_blocks) * 512
                 entry.returned.file = AttrBits.fileLinkCount | AttrBits.fileAllocSize | AttrBits.fileDataLength
             }
-            entry.returned.common = AttrBits.cmnName | AttrBits.cmnObjType | AttrBits.cmnFlags | AttrBits.cmnFileID
+            entry.returned.common =
+                AttrBits.cmnName | AttrBits.cmnObjType | AttrBits.cmnModTime | AttrBits.cmnFlags | AttrBits.cmnFileID
             entries.append(entry)
         }
         return entries

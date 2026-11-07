@@ -18,6 +18,7 @@ enum RequestedAttrs {
         attrBit(ATTR_CMN_RETURNED_ATTRS)
         | attrBit(ATTR_CMN_NAME)
         | attrBit(ATTR_CMN_OBJTYPE)
+        | attrBit(ATTR_CMN_MODTIME)
         | attrBit(ATTR_CMN_FLAGS)
         | attrBit(ATTR_CMN_FILEID)
 
@@ -47,6 +48,7 @@ enum RequestedAttrs {
 enum AttrBits {
     static let cmnName = attrBit(ATTR_CMN_NAME)
     static let cmnObjType = attrBit(ATTR_CMN_OBJTYPE)
+    static let cmnModTime = attrBit(ATTR_CMN_MODTIME)
     static let cmnFlags = attrBit(ATTR_CMN_FLAGS)
     static let cmnFileID = attrBit(ATTR_CMN_FILEID)
     static let fileLinkCount = attrBit(ATTR_FILE_LINKCOUNT)

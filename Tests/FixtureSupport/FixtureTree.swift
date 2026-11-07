@@ -98,6 +98,11 @@ public final class FixtureTree {
         }
     }
 
+    /// Backdate (or forward-date) an item's modification time, for staleness tests.
+    public func setModificationDate(_ relative: String, to date: Date) throws {
+        try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: path(relative))
+    }
+
     public func removeReadPermission(_ relative: String) throws {
         guard chmod(path(relative), 0) == 0 else { throw FixtureError.syscall("chmod", errno) }
     }

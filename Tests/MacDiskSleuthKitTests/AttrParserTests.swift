@@ -35,6 +35,37 @@ struct AttrParserTests {
         #expect(graph.sizes(of: nested).logical == 2048)
     }
 
+    @Test("Modification times come through the bulk path and roll up to the newest change in a subtree")
+    func modificationTimes() async throws {
+        let fixture = try FixtureTree()
+        try fixture.directory("old")
+        try fixture.file("old/stale.bin", size: 4096)
+        try fixture.file("fresh.bin", size: 4096)
+        let longAgo = Date(timeIntervalSinceNow: -400 * 86_400)
+        try fixture.setModificationDate("old/stale.bin", to: longAgo)
+        try fixture.setModificationDate("old", to: longAgo)
+
+        let graph = try await scanGraph(fixture.rootPath)
+
+        let stale = try #require(graph.node(at: "old/stale.bin"))
+        let staleDate = try #require(graph.modified(of: stale))
+        #expect(abs(staleDate.timeIntervalSince(longAgo)) < 2, "mtime is read exactly (whole seconds)")
+
+        let fresh = try #require(graph.node(at: "fresh.bin"))
+        let freshDate = try #require(graph.modified(of: fresh))
+        #expect(abs(freshDate.timeIntervalSinceNow) < 120)
+
+        // A folder's own mtime is when its entries last changed; the newest
+        // change *inside* is what staleness reasoning needs.
+        let old = try #require(graph.node(at: "old"))
+        let oldNewest = try #require(graph.newestModified(of: old))
+        #expect(abs(oldNewest.timeIntervalSince(longAgo)) < 2)
+        let rootNewest = try #require(graph.newestModified(of: graph.root))
+        #expect(abs(rootNewest.timeIntervalSinceNow) < 120, "the root saw fresh.bin written just now")
+        let rootOwn = try #require(graph.modified(of: graph.root))
+        #expect(abs(rootOwn.timeIntervalSinceNow) < 120, "the root carries its own mtime like any folder")
+    }
+
     @Test("Symlinks are recorded, never followed")
     func symlinksNotFollowed() async throws {
         let fixture = try FixtureTree()
@@ -66,5 +97,9 @@ struct AttrParserTests {
         #expect(bulk.summary.totalLogical == fallback.summary.totalLogical)
         #expect(fallback.summary.usedFallback)
         #expect(fallback.sizes(at: "d/b.bin")?.logical == 12288)
+
+        let bulkNode = try #require(bulk.node(at: "d/b.bin"))
+        let fallbackNode = try #require(fallback.node(at: "d/b.bin"))
+        #expect(bulk.modified(of: bulkNode) == fallback.modified(of: fallbackNode), "fstatat mtime agrees with ATTR_CMN_MODTIME")
     }
 }

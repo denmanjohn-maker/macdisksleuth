@@ -22,6 +22,8 @@ public struct RawEntry: Sendable {
     public var objType: UInt32 = 0
     public var fileID: UInt64 = 0
     public var bsdFlags: UInt32 = 0
+    /// ATTR_CMN_MODTIME as seconds since 1970; 0 if not returned.
+    public var modified: Int64 = 0
     public var linkCount: UInt32 = 1
     /// ATTR_FILE_DATALENGTH; -1 if not returned (e.g. directories).
     public var logical: Int64 = -1
@@ -46,4 +48,5 @@ public struct RawEntry: Sendable {
     public var isSparse: Bool { extFlags & ExtFlags.isSparse != 0 }
     public var isPurgeable: Bool { extFlags & ExtFlags.isPurgeable != 0 }
     public var hasPrivateSize: Bool { returned.hasFork(AttrBits.cmnextPrivateSize) }
+    public var hasModified: Bool { returned.hasCommon(AttrBits.cmnModTime) }
 }

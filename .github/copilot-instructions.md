@@ -11,7 +11,7 @@
 
 ## What this repo is
 
-macdisksleuth is a read-only disk forensics tool that answers "where did my disk's space really go?" by scanning APFS volumes with `getattrlistbulk(2)` and reconstructing a file graph from extended attributes. It ships two surfaces: a `macdisksleuth` CLI (`scan`, `top`, `info`, `overview`, `snapshots`, `cleanup`) and a SwiftUI app (`App/MacDiskSleuth.app`).
+macdisksleuth is a read-only disk forensics tool that answers "where did my disk's space really go?" by scanning APFS volumes with `getattrlistbulk(2)` and reconstructing a file graph from extended attributes. It ships two surfaces: a `macdisksleuth` CLI (`scan`, `top`, `recommend`, `info`, `overview`, `snapshots`, `cleanup`) and a SwiftUI app (`App/MacDiskSleuth.app`).
 
 ## Architecture
 
@@ -20,9 +20,10 @@ macdisksleuth is a read-only disk forensics tool that answers "where did my disk
 - `FileGraph` — immutable result with CSR child indexing (`childStart`/`childItems`). `FileGraphEditing` mutates it.
 - `NodeFlags` — node classification flags.
 - `Query` (`NodeFilter`, `NodeSort`, `SizeParser`) — query layer.
+- `Advice` (`Recommender`, `CleanupKnowledge`, `PathPatternTrie`, `Recommendation`) — "top things to delete": a rule base of disposable/protected macOS paths matched by a component-wise glob NFA during one DFS of the graph, ranked by freeable bytes × safety × per-member staleness. Generic large files are only considered outside Library folders, hidden folders, bundles and the OS; clones are skipped and reported.
 - `Volume` (`VolumeService`, `VolumeSpaceUsed`, `Snapshots`, `FDAProbe`, `Subprocess`) — volume identity, capacities, snapshots, TCC probe, subprocess wrapper.
 - `Attributes` (`BulkDirectoryReader`, `DirectoryLister`, `FallbackDirectoryReader`, `SingleItemReader`, `RawEntry`, `AttrEntryParser`, `AttrConstants`, `ScanError`, `DirHandle`) — directory enumeration with a bulk/fast-path fallback.
-- `Output` (`Arguments`, `ScanRunner`, `Style`, `TreePrinter`) — CLI rendering.
+- `Output` (`Arguments`, `ScanRunner`, `Style`, `TreePrinter`, `RecommendationPrinter`) — CLI rendering.
 
 ## Key conventions
 
@@ -33,6 +34,8 @@ Every node reports three numbers, and they are not interchangeable:
 - **physical** — allocated bytes for this path (own extents, or the shared extent for hardlinks/clones).
 - **logical** — apparent size (includes holes, so sparse files report their full length).
 - **unique** — what deleting *this one path* frees.
+
+Every node also carries `modified` (its own mtime, from `ATTR_CMN_MODTIME`) and `newestModified` (the newest mtime anywhere in its subtree, rolled up in `finalize`). Staleness reasoning uses the latter.
 
 ### The LCA charging rule
 
@@ -58,14 +61,16 @@ A clone family (one cloneID) is the set of files wholly sharing extents; it is c
 
 ### Testing
 
-- Fixtures are built with `clonefile(2)`, `link(2)`, sparse files, and permission-denied directories in a temp directory, so engine numbers can be asserted against ground truth the kernel itself reports (`st_blocks`).
+- Fixtures are built with `clonefile(2)`, `link(2)`, sparse files, backdated mtimes (`setModificationDate`), and permission-denied directories in a temp directory, so engine numbers can be asserted against ground truth the kernel itself reports (`st_blocks`).
+- Recommendation tests build a miniature home folder and pass its path as `RecommendationContext.homeDirectory`, so `~`-based rules resolve inside the fixture.
 - Tests use `@Suite`/`@Test` with `@Testing`, `#expect`, and a `within(_ actual, of expected, tolerance:)` helper (APFS physical sizes come in 4 KiB block granularity).
 - Tests are gated on volume capability where needed (`FixtureTree.volumeSupportsCloning(at:)`).
 - `TestHelpers.swift` provides `scanGraph(_ path, options:)` and `FileGraph.node(at:)`/`sizes(at:)`.
 
 ### CLI conventions
 
-- Commands: `scan`, `top`, `info`, `overview`, `snapshots`, `cleanup`.
+- Commands: `scan`, `top`, `recommend`, `info`, `overview`, `snapshots`, `cleanup`.
+- `scan` prints the top 5 recommendations after the tree (`--recommendations N`, 0 hides); `recommend` prints only them. `--notify` posts a macOS notification via osascript. Recommendations never delete anything.
 - Shared flags: `--json`, `--no-color`, `--si` (binary units).
 - Output is human-readable by default, bar-charted, and machine-readable with `--json`.
 - Destructive actions (`--remove-snapshots`) require `--dry-run` first and usually `sudo`.
