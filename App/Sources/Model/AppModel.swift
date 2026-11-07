@@ -316,11 +316,11 @@ final class AppModel {
     }
 
     /// SwiftUI names a scene's windows "<scene id>-AppWindow-N".
-    nonisolated static func isResultsWindow(_ window: NSWindow) -> Bool {
+    static func isResultsWindow(_ window: NSWindow) -> Bool {
         window.identifier?.rawValue.hasPrefix(MacDiskSleuthApp.mainWindowID) ?? false
     }
 
-    nonisolated static func isRecommendationWindow(_ window: NSWindow) -> Bool {
+    static func isRecommendationWindow(_ window: NSWindow) -> Bool {
         window.identifier?.rawValue.hasPrefix(MacDiskSleuthApp.recommendationWindowID) ?? false
     }
 
