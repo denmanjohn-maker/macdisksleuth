@@ -40,6 +40,10 @@ struct MacDiskSleuthApp: App {
                 Button("Disk Overview") { model.goToOverview() }
                     .keyboardShortcut(.upArrow, modifiers: [.command, .shift])
                     .disabled(model.graph == nil || model.atOverview)
+                Divider()
+                Button("Recommendations") { model.showRecommendations.toggle() }
+                    .keyboardShortcut("r", modifiers: [.command, .shift])
+                    .disabled(model.graph == nil)
             }
         }
 
@@ -75,6 +79,11 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+            Divider()
+            Toggle("Notify when a scan finishes", isOn: $model.notifyOnScanComplete)
+            Text("A macOS notification lists the top things to delete. Allow notifications for MacDiskSleuth when asked.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
         }
         .padding(20)
         .frame(width: 380)

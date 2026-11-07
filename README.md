@@ -20,9 +20,48 @@ An 8 GB video that's a clone of another file shows **8 GB logical, ~0 freeable**
 
 ## What's in the box
 
-- `macdisksleuth` — a fast CLI: `scan`, `top`, `info`, `overview`, `snapshots`
-- **MacDiskSleuth.app** — a native SwiftUI app with an interactive sunburst, size-lens toggle, and delete-to-Trash that shows true freeable bytes
+- `macdisksleuth` — a fast CLI: `scan`, `top`, `recommend`, `info`, `overview`, `snapshots`
+- **MacDiskSleuth.app** — a native SwiftUI app with an interactive sunburst, size-lens toggle, delete-to-Trash that shows true freeable bytes, and a "top things to delete" panel with a notification when each scan finishes
 - `MacDiskSleuthKit` — the shared engine, usable as a Swift package
+
+## Top 5 things to delete
+
+Every scan ends with a ranked list of what to delete first — and a macOS notification, if you ask for one:
+
+```
+Top 5 ways to free space  ·  up to 41.2 GB
+
+ 1  18.4 GB   Xcode & developer caches   ✓ safe
+               ~/Library/Developer/Xcode/DerivedData/MyApp-abc  12.1 GB  · untouched for 7 months
+               ~/Library/Developer/CoreSimulator/Caches  4.0 GB  · untouched for 3 weeks
+               … 6 more
+               Build intermediates, previews and simulator caches that Xcode regenerates on the next build.
+               → rm -rf ~/Library/Developer/Xcode/DerivedData  (or Xcode → Settings → Locations → Derived Data → ⓧ)
+ 2  9.8 GB    Container disk images   ? review first
+               ~/Library/Containers/com.docker.docker/Data  9.8 GB  — Docker Desktop
+               ⚠ Claims 64 GB but occupies 9.8 GB — sparse or compressed content.
+               → docker system prune -a --volumes   (then shrink the image: Docker Desktop → Settings → Resources)
+ …
+   Skipped 3 large files that are clones or hard links (23 GB logical) — deleting them would free almost nothing.
+```
+
+What makes the ranking smart:
+
+- **Freeable bytes, never logical.** Clones and hard links that would free nothing are skipped and reported as skipped; shared bytes that stay on disk are called out.
+- **It knows macOS.** A rule base recognises regenerable caches (per app, with the right purge command), Xcode DerivedData and device symbols, package-manager caches, project build artifacts (`node_modules` only next to a `package.json`), Docker/colima/minikube images, VMs, iOS backups, installers, logs, Steam games, render caches — and what must never be touched: Mail, Photos, iCloud Drive and other cloud-synced folders, the OS, `.git`.
+- **Staleness.** Modification times roll up the tree, so a cache nobody has touched in a year outranks one written this morning, and Downloads surface only once they are a month old.
+- **Duplicates.** Same name and exact size in different folders, and *not* clones — real double storage. The older copy is kept.
+- **Safety levels.** `safe` regenerates itself, `likely safe` deserves a glance, `review first` is content only you can judge. Safety and staleness weight the order, so a safe gigabyte beats a gigabyte you'd have to think about.
+- **Volume facts.** Local Time Machine snapshots and purgeable space appear when they matter.
+
+```sh
+macdisksleuth recommend                      # your home folder, top 5
+macdisksleuth recommend / -n 10 --items 5    # whole disk, more detail
+macdisksleuth recommend ~ --json             # for scripts
+macdisksleuth scan ~ --notify                # scan, then a macOS notification with the top finds
+```
+
+Nothing is ever deleted by `recommend` or `scan`; the app's Move to Trash asks first and shows the honest freeable figure.
 
 Built on `getattrlistbulk` with APFS extended attributes (`PRIVATESIZE`, `CLONEID`, extent flags) — the fast path, with per-file clone/sparse/dataless awareness and zero file opens (iCloud placeholders are never downloaded).
 
@@ -59,7 +98,8 @@ Project page: <https://denmanjohn-maker.github.io/macdisksleuth/>. Prebuilt bina
 
 ```sh
 macdisksleuth info ~/Movies/render.mov   # truth card: 3 sizes, clone family, "deleting frees X"
-macdisksleuth scan ~ --top 15            # biggest items, honest sizes
+macdisksleuth scan ~ --top 15            # biggest items, honest sizes, then the top 5 things to delete
+macdisksleuth recommend ~                # just the top things to delete, ranked by what deleting really frees
 macdisksleuth overview                   # capacity, purgeable space, local snapshots
 macdisksleuth snapshots                  # what Time Machine is still holding
 ```

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ResultsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.typography) private var type
 
     var body: some View {
         @Bindable var model = model
@@ -46,11 +47,23 @@ struct ResultsView: View {
                 .help("Logical: what files claim · Physical: what the disk holds · Freeable: what deleting frees now")
 
                 Button {
+                    model.showRecommendations.toggle()
+                } label: {
+                    Label("Recommendations", systemImage: "sparkles")
+                }
+                .help("Top things to delete to free space (⇧⌘R)")
+
+                Button {
                     model.rescan()
                 } label: {
                     Label("Rescan", systemImage: "arrow.clockwise")
                 }
             }
+        }
+        .sheet(isPresented: $model.showRecommendations) {
+            RecommendationsSheet()
+                .environment(model)
+                .environment(\.typography, type)
         }
         .safeAreaInset(edge: .bottom) { StatusBar() }
     }

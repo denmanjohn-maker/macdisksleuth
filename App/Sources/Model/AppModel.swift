@@ -21,6 +21,16 @@ final class AppModel {
     var graph: FileGraph?
     var volume: VolumeIdentity?
     var scanError: String?
+    /// "Top things to delete" for the current graph; nil while being computed.
+    var recommendations: RecommendationReport?
+    /// The context the current recommendations were computed with (paths display relative to it).
+    var recommendationContext = RecommendationContext()
+    /// Whether the recommendations sheet is showing over the results.
+    var showRecommendations = false
+    /// Post a macOS notification with the top finds when a scan completes. Persisted.
+    var notifyOnScanComplete: Bool = UserDefaults.standard.object(forKey: "notifyOnScanComplete") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(notifyOnScanComplete, forKey: "notifyOnScanComplete") }
+    }
     /// Bumped whenever `graph` is replaced (fresh scan, deletion) so views
     /// with cached derived layout know to recompute.
     var graphStamp = 0
@@ -150,6 +160,7 @@ final class AppModel {
                 self.graphStamp += 1
                 self.phase = .results
                 self.refreshFacts()
+                self.refreshRecommendations(announce: true)
             } catch {
                 guard let self, self.scanGeneration == generation else { return }
                 self.scanError = "Scan failed: \(error.localizedDescription)"
@@ -161,6 +172,35 @@ final class AppModel {
     func cancelScan() {
         session?.cancel()
         session = nil
+    }
+
+    // MARK: - Recommendations
+
+    /// Rank what to delete, off the main thread (the graph may hold millions
+    /// of nodes). `announce` also posts the system notification.
+    func refreshRecommendations(announce: Bool = false) {
+        guard let graph else {
+            recommendations = nil
+            return
+        }
+        recommendations = nil
+        let generation = scanGeneration
+        let stamp = graphStamp
+        let context = RecommendationContext(
+            snapshots: snapshots, purgeableBytes: capacities.map(\.purgeable))
+        recommendationContext = context
+        let scanned = scannedPath
+        let notify = announce && notifyOnScanComplete
+        Task.detached(priority: .userInitiated) {
+            let report = Recommender.recommend(graph: graph, context: context)
+            await MainActor.run {
+                guard self.scanGeneration == generation, self.graphStamp == stamp else { return }
+                self.recommendations = report
+            }
+            if notify {
+                await ScanNotifier.post(report: report, scannedPath: scanned)
+            }
+        }
     }
 
     func rescan() {
@@ -213,6 +253,18 @@ final class AppModel {
         drill(to: selection)
     }
 
+    /// Jump to an item from a recommendation: open its folder, select it, and
+    /// hand it to the inspector (which has the real "Move to Trash" with the
+    /// honest freeable figure).
+    func show(_ node: NodeID) {
+        guard let graph else { return }
+        showRecommendations = false
+        atOverview = false
+        focus = graph.parent(of: node) ?? graph.root
+        selection = node
+        hovered = nil
+    }
+
     /// Root-to-focus path for the breadcrumb bar.
     var breadcrumbs: [NodeID] {
         guard let graph else { return [] }
@@ -248,6 +300,7 @@ final class AppModel {
         graphStamp += 1
         if selection == node { selection = nil }
         if hovered == node { hovered = nil }
+        refreshRecommendations()
         return nil
     }
 

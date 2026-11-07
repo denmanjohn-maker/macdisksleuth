@@ -14,19 +14,27 @@ struct DiskOverviewView: View {
     private var usedColor: Color { .accentColor }
 
     var body: some View {
-        GeometryReader { proxy in
-            // Leave room for the legend and button below the ring.
-            let diameter = max(min(proxy.size.width * 0.8, proxy.size.height - 140), 220)
-            VStack(spacing: 24) {
-                Spacer(minLength: 0)
-                donut(diameter: diameter)
-                legend
-                exploreButton
-                Spacer(minLength: 0)
+        HSplitView {
+            GeometryReader { proxy in
+                // Leave room for the legend and button below the ring.
+                let diameter = max(min(proxy.size.width * 0.8, proxy.size.height - 140), 220)
+                VStack(spacing: 24) {
+                    Spacer(minLength: 0)
+                    donut(diameter: diameter)
+                    legend
+                    exploreButton
+                    Spacer(minLength: 0)
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+            .padding(24)
+            .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
+            .layoutPriority(1)
+
+            RecommendationsView()
+                .frame(minWidth: 340, idealWidth: 400, maxWidth: 520, maxHeight: .infinity)
+                .background(Color(nsColor: .controlBackgroundColor))
         }
-        .padding(24)
     }
 
     // MARK: - Numbers

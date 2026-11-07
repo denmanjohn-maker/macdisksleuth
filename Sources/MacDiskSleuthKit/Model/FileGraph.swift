@@ -1,3 +1,5 @@
+import Foundation
+
 /// Identifier of a node in a FileGraph. Raw index into the graph's arrays.
 public struct NodeID: Hashable, Sendable {
     public let raw: Int32
@@ -72,6 +74,10 @@ public struct FileGraph: Sendable {
     var physicalArr: [Int64]
     var uniqueArr: [Int64]
     var flagsArr: [UInt16]
+    /// Own modification time, whole seconds since 1970 (0 = not reported).
+    var modifiedArr: [UInt32]
+    /// Newest modification time anywhere in the subtree, own included.
+    var newestArr: [UInt32]
     // CSR children layout: children(of: i) = childItems[childStart[i]..<childStart[i+1]]
     var childStart: [Int32]
     var childItems: [Int32]
@@ -106,6 +112,21 @@ public struct FileGraph: Sendable {
     public func sizes(of node: NodeID) -> Sizes {
         let i = Int(node.raw)
         return Sizes(logical: logicalArr[i], physical: physicalArr[i], unique: uniqueArr[i])
+    }
+
+    /// When the item itself last changed. For a folder that is when an entry
+    /// was added or removed, not when a file deep inside was edited — see
+    /// `newestModified(of:)` for that. nil when the filesystem reported none.
+    public func modified(of node: NodeID) -> Date? {
+        let seconds = modifiedArr[Int(node.raw)]
+        return seconds == 0 ? nil : Date(timeIntervalSince1970: TimeInterval(seconds))
+    }
+
+    /// The most recent change anywhere inside the item (own time included):
+    /// "when did anything in here last happen". nil when unknown.
+    public func newestModified(of node: NodeID) -> Date? {
+        let seconds = newestArr[Int(node.raw)]
+        return seconds == 0 ? nil : Date(timeIntervalSince1970: TimeInterval(seconds))
     }
 
     public func size(of node: NodeID, lens: SizeLens) -> Int64 {
