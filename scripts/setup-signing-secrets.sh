@@ -47,9 +47,21 @@ echo
 p12_password=$(openssl rand -base64 24)
 security export -k "$HOME/Library/Keychains/login.keychain-db" -t identities -f pkcs12 \
   -P "$p12_password" -o "$tmp/cert.p12"
-openssl pkcs12 -in "$tmp/cert.p12" -nokeys -passin "pass:$p12_password" 2>/dev/null \
-  | grep -q 'Developer ID Application' \
-  || die "the exported .p12 does not contain the Developer ID Application certificate"
+# Verify the way the workflow will use it: import into a throwaway keychain
+# and look for the identity there. (The bundled openssl is LibreSSL and
+# cannot read the PKCS#12 format that recent macOS versions export.)
+verify_keychain="$tmp/verify.keychain-db"
+verify_password=$(openssl rand -hex 16)
+security create-keychain -p "$verify_password" "$verify_keychain"
+security import "$tmp/cert.p12" -k "$verify_keychain" -P "$p12_password" \
+  -T /usr/bin/codesign -T /usr/bin/security > /dev/null
+found=$(security find-identity -v -p codesigning "$verify_keychain")
+security delete-keychain "$verify_keychain"
+echo "$found"
+echo "$found" | grep -q 'Developer ID Application' \
+  || die "the exported .p12 does not contain the Developer ID Application certificate.
+If macOS asked to allow access to the private key and you clicked Deny, run this
+script again and click Allow."
 
 # 4. Store the secrets.
 note "Storing secrets on $repo"

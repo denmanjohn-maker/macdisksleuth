@@ -14,6 +14,19 @@ cd "$(dirname "$0")/.."
 . scripts/signing-common.sh
 
 [ "$(uname)" = Darwin ] || die "run this on a Mac with Xcode"
+
+# xcodebuild needs the full Xcode. If xcode-select points at the Command Line
+# Tools (the default on many Macs), use Xcode.app directly, like the Makefile.
+if ! xcodebuild -version >/dev/null 2>&1; then
+  xcode=$(mdfind "kMDItemCFBundleIdentifier == 'com.apple.dt.Xcode'" 2>/dev/null | head -1)
+  xcode=${xcode:-/Applications/Xcode.app}
+  [ -d "$xcode/Contents/Developer" ] || die "Xcode is required to build the app.
+Install it from the App Store, open it once to finish setup, then run this again.
+(Optionally make it the default: sudo xcode-select -s $xcode/Contents/Developer)"
+  export DEVELOPER_DIR="$xcode/Contents/Developer"
+  note "Using $xcode"
+  xcodebuild -version >/dev/null 2>&1 || die "xcodebuild still fails with DEVELOPER_DIR=$DEVELOPER_DIR. Open Xcode once to accept its license and install components, then retry."
+fi
 install=0
 [ "${1:-}" = "--install" ] && install=1
 
