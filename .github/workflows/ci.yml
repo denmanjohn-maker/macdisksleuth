@@ -24,7 +24,13 @@ jobs:
 
   app:
     name: Build app
-    runs-on: macos-latest
+    # macos-15 is the Release workflow's runner; building there too catches
+    # SDK-specific strict-concurrency errors before a tag does.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
