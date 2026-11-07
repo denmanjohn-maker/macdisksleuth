@@ -64,3 +64,15 @@ notarize_zip() { # notarize_zip <zip>
     die "notarization of $1 was not accepted"
   fi
 }
+
+# Staple the notarization ticket, retrying while Apple's ticket service
+# catches up with a freshly issued ticket.
+staple_with_retry() { # staple_with_retry <app>
+  local attempt
+  for attempt in 1 2 3 4 5 6 7 8 9 10; do
+    if xcrun stapler staple "$1"; then return 0; fi
+    echo "stapler attempt $attempt failed; retrying in 30s" >&2
+    sleep 30
+  done
+  die "could not staple the notarization ticket to $1"
+}
