@@ -5,8 +5,15 @@ struct MacDiskSleuthApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = AppModel.shared
 
+    /// Scene id of the results window; `openWindow(id:)` reopens it and
+    /// `NSWindow.identifier` starts with it.
+    static let mainWindowID = "main"
+    /// Scene id of the per-recommendation windows, keyed by `Recommendation.id`.
+    static let recommendationWindowID = "recommendation"
+
     var body: some Scene {
-        WindowGroup {
+        // First so File › New Window (⌘N) still means the results window.
+        WindowGroup(id: Self.mainWindowID) {
             RootView()
                 .environment(model)
                 .environment(\.typography, Typography(scale: model.textScale))
@@ -46,6 +53,18 @@ struct MacDiskSleuthApp: App {
                     .disabled(model.graph == nil)
             }
         }
+
+        // One window per recommendation (openWindow(value:) brings an existing
+        // one forward instead of opening a second). Scenes don't inherit the
+        // main group's environment, so inject it again. The value is nil when
+        // macOS restores the window at relaunch; the view shows an empty state.
+        WindowGroup("Recommendation", id: Self.recommendationWindowID, for: String.self) { $recommendationID in
+            RecommendationWindowView(recommendationID: recommendationID)
+                .environment(model)
+                .environment(\.typography, Typography(scale: model.textScale))
+                .environment(\.font, .system(size: 13 * model.textScale))
+        }
+        .defaultSize(width: 760, height: 620)
 
         Settings {
             SettingsView()

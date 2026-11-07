@@ -476,10 +476,7 @@ private struct Engine {
     /// Categories whose advice is "prune from inside the tool" or "let macOS
     /// handle it" never get a Move to Trash button, however single the node.
     private static func trashable(_ category: CleanupCategory) -> Bool {
-        switch category {
-        case .systemManaged, .containers: false
-        default: true
-        }
+        category.membersAreTrashable
     }
 
     private func genericRecommendation(_ candidate: Candidate) -> Recommendation? {

@@ -295,3 +295,38 @@ public enum AgeText {
         }
     }
 }
+
+// MARK: - Acting on a recommendation
+
+extension CleanupCategory {
+    /// Whether a recommendation's members may be moved to the Trash from the
+    /// app. Container disk images and system-managed temp folders carry
+    /// "prune from inside the tool" / "let macOS handle it" advice, and
+    /// snapshot advice has no files at all.
+    public var membersAreTrashable: Bool {
+        switch self {
+        case .systemManaged, .containers, .snapshots: false
+        default: true
+        }
+    }
+}
+
+extension Recommendation {
+    /// Members that exist in the scanned tree and so can be acted on.
+    public var actionableItems: [Item] { items.filter { $0.node != nil } }
+
+    /// Whether the guided "Fix" flow (pick members, move them to the Trash)
+    /// applies. Independent of `canMoveToTrash`, which is about the primary
+    /// node: a per-app cache breakdown or a duplicates group has no single
+    /// trashable node yet is exactly what Fix is for.
+    public var isFixable: Bool { category.membersAreTrashable && !actionableItems.isEmpty }
+
+    /// Members the Fix flow starts with checked: everything for a `safe`
+    /// recommendation, nothing for one that deserves a look first.
+    public var preselectedItemIDs: Set<String> {
+        safety == .safe ? Set(actionableItems.map(\.id)) : []
+    }
+
+    /// Members beyond the storage cap that are not listed.
+    public var hiddenItemCount: Int { max(itemCount - items.count, 0) }
+}

@@ -21,7 +21,7 @@ An 8 GB video that's a clone of another file shows **8 GB logical, ~0 freeable**
 ## What's in the box
 
 - `macdisksleuth` — a fast CLI: `scan`, `top`, `recommend`, `info`, `overview`, `snapshots`
-- **MacDiskSleuth.app** — a native SwiftUI app with an interactive sunburst, size-lens toggle, delete-to-Trash that shows true freeable bytes, and a "top things to delete" panel with a notification when each scan finishes
+- **MacDiskSleuth.app** — a native SwiftUI app with an interactive sunburst, size-lens toggle, delete-to-Trash that shows true freeable bytes, and a "top things to delete" panel with a notification when each scan finishes. Click a recommendation to open it in its own window, or **Fix** it: tick the members to move to the Trash and confirm with Touch ID, Apple Watch, or your password
 - `MacDiskSleuthKit` — the shared engine, usable as a Swift package
 
 ## Top 5 things to delete
@@ -61,7 +61,7 @@ macdisksleuth recommend ~ --json             # for scripts
 macdisksleuth scan ~ --notify                # scan, then a macOS notification with the top finds
 ```
 
-Nothing is ever deleted by `recommend` or `scan`; the app's Move to Trash asks first and shows the honest freeable figure.
+Nothing is ever deleted by `recommend` or `scan`. In the app, Move to Trash asks first and shows the honest freeable figure, and Fix requires Touch ID, Apple Watch, or your login password before it moves anything — always to the Trash, never permanently.
 
 Built on `getattrlistbulk` with APFS extended attributes (`PRIVATESIZE`, `CLONEID`, extent flags) — the fast path, with per-file clone/sparse/dataless awareness and zero file opens (iCloud placeholders are never downloaded).
 

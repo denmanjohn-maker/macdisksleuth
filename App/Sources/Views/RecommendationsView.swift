@@ -69,15 +69,20 @@ struct RecommendationsView: View {
 struct RecommendationCard: View {
     @Environment(AppModel.self) private var model
     @Environment(\.typography) private var type
+    @Environment(\.openWindow) private var openWindow
     var recommendation: Recommendation
     var rank: Int
     @State private var confirmingDelete = false
+    @State private var fixing = false
     @State private var deleteError: String?
 
     private var context: RecommendationContext { model.recommendationContext }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            // The title row opens the recommendation in its own window. Only
+            // the row, not the whole card: the card holds selectable text and
+            // buttons that a card-wide tap would fight with.
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("\(rank)")
                     .font(type.title3.bold())
@@ -91,10 +96,21 @@ struct RecommendationCard: View {
                     .font(type.headline)
                     .foregroundStyle(.green)
                     .monospacedDigit()
+                Button {
+                    openInWindow()
+                } label: {
+                    Image(systemName: "arrow.up.forward.square")
+                }
+                .buttonStyle(.borderless)
+                .help("Open in its own window")
             }
+            .contentShape(Rectangle())
+            .onTapGesture { openInWindow() }
+            .accessibilityAddTraits(.isButton)
+            .help("Open in its own window")
 
             HStack(spacing: 8) {
-                safetyBadge
+                SafetyBadge(safety: recommendation.safety)
                 if recommendation.category.ageMatters, let newest = recommendation.newestModified {
                     Text(AgeText.staleness(since: newest, now: context.now))
                         .font(type.caption)
@@ -152,6 +168,14 @@ struct RecommendationCard: View {
                     Button("Show Here") { model.show(node) }
                 }
                 Spacer()
+                if recommendation.isFixable {
+                    Button {
+                        fixing = true
+                    } label: {
+                        Label("Fix…", systemImage: "checklist")
+                    }
+                    .help("Choose which items to move to the Trash")
+                }
                 if recommendation.canMoveToTrash, recommendation.node != nil {
                     Button(role: .destructive) {
                         confirmingDelete = true
@@ -168,6 +192,11 @@ struct RecommendationCard: View {
         }
         .padding(12)
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
+        .sheet(isPresented: $fixing) {
+            FixRecommendationView(recommendation: recommendation)
+                .environment(model)
+                .environment(\.typography, type)
+        }
         .confirmationDialog(
             "Move \"\(recommendation.title)\" to Trash?",
             isPresented: $confirmingDelete, titleVisibility: .visible
@@ -215,9 +244,19 @@ struct RecommendationCard: View {
         }
     }
 
-    private var safetyBadge: some View {
+    private func openInWindow() {
+        openWindow(value: recommendation.id)
+    }
+}
+
+/// "Safe" / "Likely safe" / "Review first" pill, shared by cards, the detail window and Fix.
+struct SafetyBadge: View {
+    @Environment(\.typography) private var type
+    var safety: CleanupSafety
+
+    var body: some View {
         let (text, color, symbol): (String, Color, String) =
-            switch recommendation.safety {
+            switch safety {
             case .safe: ("Safe", .green, "checkmark.seal")
             case .likelySafe: ("Likely safe", .yellow, "hand.thumbsup")
             case .review: ("Review first", .blue, "eye")

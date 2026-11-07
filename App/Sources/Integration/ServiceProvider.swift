@@ -38,7 +38,11 @@ final class ServiceProvider: NSObject {
     /// late window still shows it — but retry briefly so it also comes forward.
     private func bringMainWindowForward(retries: Int = 10) {
         NSApp.activate()
-        if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
+        // Prefer the results window over a detached recommendation window.
+        let results = NSApp.windows.first {
+            $0.canBecomeMain && ($0.identifier?.rawValue.hasPrefix(MacDiskSleuthApp.mainWindowID) ?? false)
+        }
+        if let window = results ?? NSApp.windows.first(where: { $0.canBecomeMain }) {
             window.makeKeyAndOrderFront(nil)
             return
         }

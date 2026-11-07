@@ -312,6 +312,69 @@ final class AppModel {
         return nil
     }
 
+    /// Move several items to the Trash in one go (the Fix flow), then patch
+    /// the graph once. Items already removed count as moved with nothing
+    /// freed; a file that vanished since the scan counts the same way.
+    func moveToTrash(_ nodes: [NodeID]) async -> BatchTrashResult {
+        guard let graph else {
+            return BatchTrashResult(
+                failures: nodes.map { TrashFailure(node: $0, path: "", message: "No scan loaded.") })
+        }
+        let stamp = graphStamp
+        let generation = scanGeneration
+
+        var result = BatchTrashResult()
+        var pending: [TrashWorkItem] = []
+        var seen: Set<NodeID> = []
+        for node in nodes where seen.insert(node).inserted {
+            if graph.isRemoved(node) {
+                result.trashed.append(node)
+            } else {
+                pending.append(
+                    TrashWorkItem(node: node, path: graph.path(of: node), unique: graph.sizes(of: node).unique))
+            }
+        }
+
+        // Trashing fifty items is fifty Finder round trips; keep the UI responsive.
+        let work = pending
+        let outcomes = await Task.detached(priority: .userInitiated) { () -> [TrashOutcome] in
+            work.map { item in
+                do {
+                    try FileManager.default.trashItem(at: URL(fileURLWithPath: item.path), resultingItemURL: nil)
+                    return TrashOutcome(node: item.node, path: item.path, freed: item.unique, error: nil)
+                } catch let error as CocoaError where error.code == .fileNoSuchFile || error.code == .fileReadNoSuchFile {
+                    return TrashOutcome(node: item.node, path: item.path, freed: 0, error: nil)
+                } catch {
+                    return TrashOutcome(node: item.node, path: item.path, freed: 0, error: error.localizedDescription)
+                }
+            }
+        }.value
+
+        var trashedNow: [NodeID] = []
+        for outcome in outcomes {
+            if let message = outcome.error {
+                result.failures.append(TrashFailure(node: outcome.node, path: outcome.path, message: message))
+            } else {
+                trashedNow.append(outcome.node)
+                result.freed += outcome.freed
+            }
+        }
+        result.trashed.append(contentsOf: trashedNow)
+
+        // A rescan that landed meanwhile already reflects the disk; never patch a stale graph.
+        guard graphStamp == stamp, scanGeneration == generation, let current = self.graph, !trashedNow.isEmpty
+        else { return result }
+        for node in trashedNow where focus == node || isDescendant(focus, of: node) {
+            focus = current.parent(of: node) ?? current.root
+        }
+        self.graph = current.removing(all: trashedNow)
+        graphStamp += 1
+        if let selection, trashedNow.contains(selection) { self.selection = nil }
+        if let hovered, trashedNow.contains(hovered) { self.hovered = nil }
+        refreshRecommendations()
+        return result
+    }
+
     private func isDescendant(_ node: NodeID, of ancestor: NodeID) -> Bool {
         guard let graph else { return false }
         var current: NodeID? = node
@@ -321,6 +384,35 @@ final class AppModel {
         }
         return false
     }
+}
+
+/// One member a batch trash could not move.
+struct TrashFailure: Sendable, Identifiable {
+    var id: NodeID { node }
+    var node: NodeID
+    var path: String
+    var message: String
+}
+
+/// Outcome of a batch trash: what moved, what didn't, and the honest
+/// freeable total of what moved.
+struct BatchTrashResult: Sendable {
+    var trashed: [NodeID] = []
+    var failures: [TrashFailure] = []
+    var freed: Int64 = 0
+}
+
+private struct TrashWorkItem: Sendable {
+    var node: NodeID
+    var path: String
+    var unique: Int64
+}
+
+private struct TrashOutcome: Sendable {
+    var node: NodeID
+    var path: String
+    var freed: Int64
+    var error: String?
 }
 
 func errnoString2(_ code: Int32) -> String {

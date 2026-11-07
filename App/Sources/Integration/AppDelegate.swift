@@ -15,8 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Single-window utility: quitting with the window means a Quick Action
-    /// always relaunches into a fresh, visible window.
+    /// Quitting with the last window means a Quick Action always relaunches
+    /// into a fresh, visible window. Recommendation windows count: closing the
+    /// results window while one is open keeps the app running until that
+    /// window closes too.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }

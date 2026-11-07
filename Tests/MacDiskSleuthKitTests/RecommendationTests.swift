@@ -256,9 +256,35 @@ struct RecommendationTests {
         #expect(advice.action.contains("'/Volumes/My Disk'"))
         #expect(advice.caveats.contains { $0.contains("5.00 GB") })
         #expect(!advice.canMoveToTrash)
+        #expect(!advice.isFixable, "nothing to tick: snapshot advice has no files")
         #expect(recommendation(.snapshots, in: report) == nil, "never in the ranked list")
         #expect(report.totalFreeable == report.recommendations.reduce(Int64(0)) { $0 + $1.freeable })
         #expect(report.notes.contains { $0.contains("1 local Time Machine snapshot exists") })
+        _ = fixture
+    }
+
+    @Test("Safe recommendations pre-check every member for Fix; others start unchecked")
+    func fixPreselection() async throws {
+        let (fixture, home) = try Self.homeFixture()
+        let graph = try await scanGraph(home)
+        let report = Recommender.recommend(graph: graph, context: Self.context(home: home))
+
+        let caches = try #require(recommendation(.applicationCaches, in: report))
+        #expect(caches.isFixable, "a per-app breakdown is exactly what Fix is for")
+        #expect(!caches.canMoveToTrash, "even though it has no single trashable node")
+        #expect(caches.preselectedItemIDs == Set(caches.items.map(\.id)))
+
+        let downloads = try #require(recommendation(.downloads, in: report))
+        #expect(downloads.isFixable)
+        #expect(downloads.preselectedItemIDs.isEmpty, "likely safe deserves a look first")
+
+        let duplicates = try #require(recommendation(.duplicates, in: report))
+        #expect(duplicates.isFixable)
+        #expect(duplicates.preselectedItemIDs.isEmpty)
+        #expect(duplicates.hiddenItemCount == 0)
+
+        let notTrashable = CleanupCategory.allCases.filter { !$0.membersAreTrashable }
+        #expect(Set(notTrashable) == [.systemManaged, .containers, .snapshots])
         _ = fixture
     }
 
