@@ -8,6 +8,13 @@ public struct SnapshotInfo: Sendable, Codable, Identifiable {
     public var xid: UInt64?
     public var purgeable: Bool?
 
+    public init(name: String, uuid: String? = nil, xid: UInt64? = nil, purgeable: Bool? = nil) {
+        self.name = name
+        self.uuid = uuid
+        self.xid = xid
+        self.purgeable = purgeable
+    }
+
     public var id: String { uuid ?? name }
 
     /// Time Machine snapshot names embed a timestamp: com.apple.TimeMachine.2026-08-30-101112.local
