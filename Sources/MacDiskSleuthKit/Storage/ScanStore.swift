@@ -19,11 +19,16 @@ public final class ScanStore {
     }
 
     /// One-time migration from the pre-rename `~/.disksleuth` directory. Moves the
-    /// old directory into place if the new one does not exist yet; failures are
-    /// ignored so a stray file can never prevent the tool from running.
+    /// old directory into place if the new path does not exist yet. Only a real
+    /// directory is moved, and failures are ignored, so a stray file can never
+    /// prevent the tool from running.
     private static func migrateLegacyDirectory(from old: URL, to new: URL) {
         let fm = FileManager.default
-        guard !fm.fileExists(atPath: new.path), fm.fileExists(atPath: old.path) else { return }
+        var isDirectory: ObjCBool = false
+        guard !fm.fileExists(atPath: new.path),
+              fm.fileExists(atPath: old.path, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else { return }
         try? fm.moveItem(at: old, to: new)
     }
 
