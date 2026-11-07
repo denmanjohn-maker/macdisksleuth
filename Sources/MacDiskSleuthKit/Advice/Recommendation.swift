@@ -171,16 +171,31 @@ public struct RecommendationReport: Sendable {
     /// Report-level honesty notes (skipped clones, unreadable folders, snapshots).
     public var notes: [String]
     public var generatedAt: Date
+    /// Advice about the volume itself — local Time Machine snapshots — whose
+    /// savings macOS does not report. Kept out of the ranked list and its total
+    /// rather than ranked on an invented number.
+    public var volumeAdvice: Recommendation?
 
     public init(
         recommendations: [Recommendation], totalFreeable: Int64, consideredCount: Int,
-        notes: [String], generatedAt: Date
+        notes: [String], generatedAt: Date, volumeAdvice: Recommendation? = nil
     ) {
         self.recommendations = recommendations
         self.totalFreeable = totalFreeable
         self.consideredCount = consideredCount
         self.notes = notes
         self.generatedAt = generatedAt
+        self.volumeAdvice = volumeAdvice
+    }
+
+    /// The same report showing only the first `count` recommendations, with
+    /// the headline total recomputed to match.
+    public func limited(to count: Int) -> RecommendationReport {
+        guard count < recommendations.count else { return self }
+        var copy = self
+        copy.recommendations = Array(recommendations.prefix(max(count, 0)))
+        copy.totalFreeable = copy.recommendations.reduce(Int64(0)) { $0 + $1.freeable }
+        return copy
     }
 }
 
@@ -199,6 +214,8 @@ public struct RecommendationContext: Sendable {
     public var snapshots: [SnapshotInfo]
     /// Purgeable space on the scanned volume, when known.
     public var purgeableBytes: Int64?
+    /// Mount point of the scanned volume, so snapshot advice targets it.
+    public var volumeMountPoint: String?
     /// How many members a recommendation keeps (the largest).
     public var maxItems: Int
 
@@ -209,6 +226,7 @@ public struct RecommendationContext: Sendable {
         minimumBytes: Int64 = 50_000_000,
         snapshots: [SnapshotInfo] = [],
         purgeableBytes: Int64? = nil,
+        volumeMountPoint: String? = nil,
         maxItems: Int = 50
     ) {
         let home = homeDirectory
@@ -220,7 +238,14 @@ public struct RecommendationContext: Sendable {
         self.minimumBytes = minimumBytes
         self.snapshots = snapshots
         self.purgeableBytes = purgeableBytes
+        self.volumeMountPoint = volumeMountPoint
         self.maxItems = maxItems
+    }
+
+    /// Local snapshots Time Machine made (system-update snapshots are not
+    /// something `tmutil deletelocalsnapshots` removes).
+    public var timeMachineSnapshots: [SnapshotInfo] {
+        snapshots.filter { $0.timeMachineDate != nil }
     }
 
     /// "~/Library/Caches" for paths under the home directory.

@@ -63,10 +63,10 @@ actor GraphBuilder {
     private var progressPhysical: Int64 = 0
     private var lastPath = ""
 
-    func addRoot(name: String) -> Int32 {
+    func addRoot(name: String, modified: Int64) -> Int32 {
         appendNode(
             name: name, parent: -1, depth: 0, flags: NodeFlags(kind: .directory),
-            logical: 0, physical: 0, unique: 0, modified: 0)
+            logical: 0, physical: 0, unique: 0, modified: modified)
     }
 
     /// Append one batch of a directory's entries; returns the node IDs

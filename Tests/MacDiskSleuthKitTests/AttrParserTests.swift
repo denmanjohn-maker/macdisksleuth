@@ -62,6 +62,8 @@ struct AttrParserTests {
         #expect(abs(oldNewest.timeIntervalSince(longAgo)) < 2)
         let rootNewest = try #require(graph.newestModified(of: graph.root))
         #expect(abs(rootNewest.timeIntervalSinceNow) < 120, "the root saw fresh.bin written just now")
+        let rootOwn = try #require(graph.modified(of: graph.root))
+        #expect(abs(rootOwn.timeIntervalSinceNow) < 120, "the root carries its own mtime like any folder")
     }
 
     @Test("Symlinks are recorded, never followed")

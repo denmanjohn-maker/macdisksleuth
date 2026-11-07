@@ -32,6 +32,8 @@ private struct Engine {
         var rule: Int?
         var node: NodeID
         var path: String
+        /// Matcher state at this node, so protected children can be told apart.
+        var states: [PathPatternTrie.Node] = []
         /// The scan root itself matched a rule: recommend its children.
         var forceChildren = false
     }
@@ -48,7 +50,10 @@ private struct Engine {
         var logical: Int64
     }
 
+    /// Protected content: never recommended, never a member.
     private static let excludeRule = -1
+    /// Opaque bundle: not descended into, but may be a member of a recommendation.
+    private static let opaqueRule = -2
 
     private let graph: FileGraph
     private let context: RecommendationContext
@@ -80,6 +85,9 @@ private struct Engine {
         for pattern in CleanupKnowledge.excludedPatterns {
             for expanded in expand(pattern) { trie.insert(expanded, rule: Self.excludeRule) }
         }
+        for pattern in CleanupKnowledge.opaquePatterns {
+            for expanded in expand(pattern) { trie.insert(expanded, rule: Self.opaqueRule) }
+        }
     }
 
     /// "~/x" → the user's home and every account under /Users.
@@ -98,6 +106,7 @@ private struct Engine {
         traverse()
 
         var all = build().filter { $0.freeable >= context.minimumBytes }
+        let volumeAdvice = rootExcluded ? nil : snapshotAdvice()
         all.sort { a, b in
             if a.score != b.score { return a.score > b.score }
             if a.freeable != b.freeable { return a.freeable > b.freeable }
@@ -124,10 +133,10 @@ private struct Engine {
             if graph.ledger.likelyNeedsFullDiskAccess { note += " Grant Full Disk Access for a complete picture." }
             notes.append(note)
         }
-        if !context.snapshots.isEmpty {
-            let count = context.snapshots.count
+        let timeMachine = context.timeMachineSnapshots.count
+        if timeMachine > 0 {
             notes.append(
-                "\(count) local Time Machine snapshot\(count == 1 ? " exists" : "s exist") — space freed by deletions may appear gradually as they thin.")
+                "\(timeMachine) local Time Machine snapshot\(timeMachine == 1 ? " exists" : "s exist") — space freed by deletions may appear gradually as they thin.")
         }
 
         return RecommendationReport(
@@ -135,7 +144,8 @@ private struct Engine {
             totalFreeable: top.reduce(Int64(0)) { $0 + $1.freeable },
             consideredCount: all.count,  // everything that cleared the size floor
             notes: notes,
-            generatedAt: context.now)
+            generatedAt: context.now,
+            volumeAdvice: volumeAdvice)
     }
 
     // MARK: - Traversal
@@ -145,6 +155,7 @@ private struct Engine {
         // whether generic large-file finds are allowed there.
         var states = trie.start()
         var genericAllowed = true
+        var ancestorExcluded = false
         var path = ""
         for component in graph.rootPath.split(separator: "/") where !component.isEmpty {
             let name = String(component)
@@ -154,15 +165,20 @@ private struct Engine {
             if genericAllowed {
                 genericAllowed = allowsGeneric(name: name, path: path, parentPath: parent, explicit: true)
             }
+            // Scanning inside protected content (a .git, a mail store, an app
+            // bundle) is still inside it; the exclusion travels down.
+            let (ancestorRule, excludedHere) = decide(states)
+            if excludedHere && ancestorRule == nil { ancestorExcluded = true }
         }
         let rootPath = graph.rootPath
 
         let (rule, excluded) = decide(states)
         if let rule, applies(rules[rule], node: graph.root, parent: nil) {
-            candidates.append(Candidate(rule: rule, node: graph.root, path: rootPath, forceChildren: true))
+            candidates.append(
+                Candidate(rule: rule, node: graph.root, path: rootPath, states: states, forceChildren: true))
             return
         }
-        if excluded {
+        if excluded || ancestorExcluded {
             rootExcluded = true
             return
         }
@@ -181,7 +197,7 @@ private struct Engine {
                     let childStates = trie.advance(frame.states, component: name)
                     let (rule, excluded) = decide(childStates)
                     if let rule, applies(rules[rule], node: child, parent: frame.node) {
-                        candidates.append(Candidate(rule: rule, node: child, path: childPath))
+                        candidates.append(Candidate(rule: rule, node: child, path: childPath, states: childStates))
                         continue  // the rule covers the whole subtree
                     }
                     if excluded { continue }
@@ -216,20 +232,26 @@ private struct Engine {
         }
     }
 
-    /// The most specific rule ending here, and whether an exclusion does too.
+    /// The most specific rule ending here, and whether an exclusion (protected
+    /// content or an opaque bundle) does too.
     private func decide(_ states: [PathPatternTrie.Node]) -> (rule: Int?, excluded: Bool) {
         let payloads = trie.payloads(states)
         guard !payloads.isEmpty else { return (nil, false) }
         var best: PathPatternTrie.Payload?
         var excluded = false
         for payload in payloads {
-            if payload.rule == Self.excludeRule {
+            if payload.rule < 0 {
                 excluded = true
             } else if best == nil || payload.specificity > best!.specificity {
                 best = payload
             }
         }
         return (best?.rule, excluded)
+    }
+
+    /// Protected content ends here (mail, photos, cloud-synced, .git …).
+    private func isProtected(_ states: [PathPatternTrie.Node]) -> Bool {
+        trie.payloads(states).contains { $0.rule == Self.excludeRule }
     }
 
     /// Project markers: `node_modules` next to a package.json, a venv with pyvenv.cfg inside.
@@ -294,8 +316,13 @@ private struct Engine {
         var groupOrder: [String] = []
         var out: [Recommendation] = []
 
+        // Duplicates first: an extra copy is recommended once, as a duplicate,
+        // never again as a generic large file.
+        let (duplicates, duplicateNodes) = duplicateRecommendation()
+
         for candidate in candidates {
             guard let ruleIndex = candidate.rule else {
+                if duplicateNodes.contains(candidate.node) { continue }
                 if let generic = genericRecommendation(candidate) { out.append(generic) }
                 continue
             }
@@ -312,8 +339,7 @@ private struct Engine {
                 out.append(recommendation)
             }
         }
-        if let duplicates = duplicateRecommendation() { out.append(duplicates) }
-        if let snapshots = snapshotRecommendation() { out.append(snapshots) }
+        if let duplicates { out.append(duplicates) }
         return out
     }
 
@@ -347,15 +373,24 @@ private struct Engine {
         }
 
         if rule.itemsAreChildren || candidate.forceChildren {
+            var everyChildIncluded = true
             for child in graph.children(of: candidate.node) {
                 let flags = graph.flags(of: child)
                 if flags.otherVolume || flags.duplicate || flags.firmlinkSkipped { continue }
                 let name = graph.name(of: child)
+                // A Photos library or a .git parked in Downloads stays protected.
+                if isProtected(trie.advance(candidate.states, component: name)) {
+                    everyChildIncluded = false
+                    continue
+                }
                 let newest = graph.newestModified(of: child)
                 if let days = rule.staleAfterDays {
                     guard let newest,
                         context.now.timeIntervalSince(newest) >= Double(days) * 86_400
-                    else { continue }
+                    else {
+                        everyChildIncluded = false
+                        continue
+                    }
                 }
                 let childPath = candidate.path == "/" ? "/" + name : candidate.path + "/" + name
                 let note: String? =
@@ -363,6 +398,12 @@ private struct Engine {
                     ? itemDescription(name: name, flags: flags, newest: newest)
                     : CleanupKnowledge.hint(forChildNamed: name)
                 add(child, path: childPath, note: note)
+            }
+            if everyChildIncluded {
+                // The folder's own totals carry the shared-bytes corrections
+                // charged at this level (hard links spanning two caches free
+                // their content only when both go), which a sum of children loses.
+                result.totals = graph.sizes(of: candidate.node)
             }
         } else {
             let note: String?
@@ -521,9 +562,11 @@ private struct Engine {
             node: node, members: found, canMoveToTrash: true, caveats: caveats)
     }
 
-    private func duplicateRecommendation() -> Recommendation? {
+    /// The duplicate recommendation and the set of extra copies it names.
+    private func duplicateRecommendation() -> (Recommendation?, Set<NodeID>) {
         var found = Members()
         var groupCount = 0
+        var extras: Set<NodeID> = []
         for (_, nodes) in duplicateGroups where nodes.count > 1 {
             // Keep the oldest copy — the original, usually — and suggest the rest.
             let ordered = nodes.sorted { a, b in
@@ -535,6 +578,7 @@ private struct Engine {
             let kept = context.displayPath(graph.path(of: ordered[0]))
             groupCount += 1
             for extra in ordered.dropFirst() {
+                extras.insert(extra)
                 let sizes = graph.sizes(of: extra)
                 found.totals.add(sizes)
                 let date = graph.newestModified(of: extra)
@@ -545,9 +589,9 @@ private struct Engine {
                         note: "same name & size as \(kept)"))
             }
         }
-        guard groupCount > 0, found.totals.unique > 0 else { return nil }
+        guard groupCount > 0, found.totals.unique > 0 else { return (nil, []) }
         let copies = found.items.count
-        return make(
+        let recommendation = make(
             id: "duplicates",
             category: .duplicates,
             title: "Duplicate copies (\(copies) extra \(copies == 1 ? "file" : "files"))",
@@ -555,31 +599,43 @@ private struct Engine {
             reason: "Same name and exact size in different folders, and not APFS clones — so each copy really occupies disk. MacDiskSleuth never opens files; confirm they match before deleting.",
             action: "Keep one of each; delete the rest, or turn them into clones with `cp -c` so they share storage.",
             node: nil, members: found, canMoveToTrash: false)
+        return (recommendation, extras)
     }
 
-    private func snapshotRecommendation() -> Recommendation? {
-        let count = context.snapshots.count
-        guard count > 0, let purgeable = context.purgeableBytes, purgeable > 0 else { return nil }
-        var recommendation = Recommendation(
+    /// Local Time Machine snapshots on the scanned volume. macOS reports no
+    /// per-snapshot size, so this carries no byte figure and never enters the
+    /// ranked list or its total — honesty over a number.
+    private func snapshotAdvice() -> Recommendation? {
+        let count = context.timeMachineSnapshots.count
+        guard count > 0 else { return nil }
+        let volume = context.volumeMountPoint ?? "/"
+        var caveats = ["macOS does not report how much space snapshots hold, so none is counted above."]
+        if let purgeable = context.purgeableBytes, purgeable > 0 {
+            caveats.append(
+                "The volume reports \(ByteCount.format(purgeable)) purgeable in all (snapshots, evictable caches and iCloud content together).")
+        }
+        return Recommendation(
             id: "snapshots",
             category: .snapshots,
-            title: "Local Time Machine snapshots (\(count))",
+            title: "Local Time Machine snapshots (\(count)) on \(volume)",
             safety: .likelySafe,
             reason: "Local snapshots hold on to every block deleted recently, so other deletions don't show up as free space until they thin. Your Time Machine disk keeps the real history, and macOS makes a fresh local snapshot every hour while Time Machine is on.",
-            action: "sudo macdisksleuth cleanup --remove-snapshots --dry-run   (then without --dry-run)",
+            action: "sudo macdisksleuth cleanup \(Self.shellQuoted(volume)) --remove-snapshots --dry-run   (then without --dry-run)",
             node: nil,
             items: [],
             itemCount: 0,
-            sizes: Sizes(logical: purgeable, physical: purgeable, unique: purgeable),
+            sizes: Sizes(logical: 0, physical: 0, unique: 0),
             newestModified: nil,
-            caveats: [
-                "macOS does not report per-snapshot sizes; this is the volume's purgeable space, which local snapshots usually dominate."
-            ],
+            caveats: caveats,
             confidence: 0.6,
             canMoveToTrash: false,
             score: 0)
-        recommendation.score = Double(purgeable) * CleanupSafety.likelySafe.weight
-        return recommendation
+    }
+
+    private static func shellQuoted(_ path: String) -> String {
+        path.contains(where: { " \"'\\$`!*?[](){}<>|&;".contains($0) })
+            ? "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+            : path
     }
 
     private func make(
@@ -611,14 +667,17 @@ private struct Engine {
             caveats.append("macOS already counts some of this as purgeable.")
         }
 
+        // Rank over every member, then keep only the largest for display, so
+        // the storage cap never changes the order.
         var recommendation = Recommendation(
             id: id, category: category, title: title, safety: safety, reason: reason, action: action,
-            node: node, items: Array(items.prefix(context.maxItems)), itemCount: items.count,
+            node: node, items: items, itemCount: items.count,
             sizes: totals, newestModified: members.newest, caveats: caveats,
             confidence: 0, canMoveToTrash: canMoveToTrash, score: 0)
         let ranked = rank(recommendation)
         recommendation.score = ranked.score
         recommendation.confidence = ranked.confidence
+        recommendation.items = Array(items.prefix(context.maxItems))
         return recommendation
     }
 

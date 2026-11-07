@@ -3,6 +3,7 @@ import MacDiskSleuthKit
 
 /// Volume-level facts the recommender wants alongside a scan graph.
 struct VolumeFacts: Sendable {
+    var mountPoint = "/"
     var snapshots: [SnapshotInfo] = []
     var purgeable: Int64?
 
@@ -10,6 +11,7 @@ struct VolumeFacts: Sendable {
     static func gather(forPath path: String) async -> VolumeFacts {
         var facts = VolumeFacts()
         let mount = (try? VolumeService.identity(ofPath: path))?.mountPoint ?? "/"
+        facts.mountPoint = mount
         facts.snapshots = (try? await VolumeService.snapshots(ofVolume: mount)) ?? []
         if let capacities = try? VolumeService.capacities(ofVolume: mount), capacities.purgeable > 0 {
             facts.purgeable = capacities.purgeable
@@ -45,6 +47,17 @@ struct RecommendationPrinter {
         for (index, recommendation) in recommendations.enumerated() {
             printOne(recommendation, rank: index + 1)
         }
+        if let advice = report.volumeAdvice {
+            let indent = Self.indent
+            print()
+            print(" " + style.dim("◷ ") + " " + style.dim("size unknown") + " " + style.bold(advice.title)
+                + "   \(safetyLabel(advice.safety))")
+            print(wrap(advice.reason, firstIndent: indent, indent: indent))
+            for caveat in advice.caveats {
+                print(wrap(caveat, firstIndent: indent + style.yellow("⚠ "), indent: indent + "  "))
+            }
+            print(wrap(advice.action, firstIndent: indent + style.dim("→ "), indent: indent + "  "))
+        }
         if !report.notes.isEmpty {
             print()
             for note in report.notes { print(style.dim(wrap(note, firstIndent: "  ", indent: "  "))) }
@@ -70,7 +83,9 @@ struct RecommendationPrinter {
 
         let items = recommendation.items
         if items.count == 1, recommendation.node != nil, let only = items.first {
-            print(indent + style.cyan(context.displayPath(only.path)) + ageSuffix(only.newestModified, recommendation))
+            var line = indent + style.cyan(context.displayPath(only.path))
+            if let note = only.note, note != recommendation.title { line += style.dim("  — \(note)") }
+            print(line + ageSuffix(only.newestModified, recommendation))
         } else if !items.isEmpty {
             for item in items.prefix(itemsShown) {
                 var line = indent + style.cyan(context.displayPath(item.path)) + style.dim("  \(fmt(item.sizes.unique))")
@@ -168,14 +183,22 @@ struct RecommendationReportJSON: Codable {
     var considered: Int
     var notes: [String]
     var recommendations: [RecommendationJSON]
+    /// Snapshot advice for the volume; its savings are unknown and not in totalFreeable.
+    var volumeAdvice: RecommendationJSON?
 
     init(report: RecommendationReport) {
         totalFreeable = report.totalFreeable
         considered = report.consideredCount
         notes = report.notes
+        volumeAdvice = report.volumeAdvice.map { Self.encode($0, rank: 0) }
         recommendations = report.recommendations.enumerated().map { index, recommendation in
+            Self.encode(recommendation, rank: index + 1)
+        }
+    }
+
+    private static func encode(_ recommendation: Recommendation, rank: Int) -> RecommendationJSON {
             RecommendationJSON(
-                rank: index + 1,
+                rank: rank,
                 category: recommendation.category.rawValue,
                 title: recommendation.title,
                 safety: recommendation.safety.rawValue,
@@ -193,6 +216,5 @@ struct RecommendationReportJSON: Codable {
                         path: $0.path, logical: $0.sizes.logical, physical: $0.sizes.physical,
                         freeable: $0.sizes.unique, lastModified: $0.newestModified, note: $0.note)
                 })
-        }
     }
 }

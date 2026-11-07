@@ -64,7 +64,8 @@ struct Recommend: AsyncParsableCommand {
         let facts = await factsTask.value
 
         var context = RecommendationContext(
-            limit: number, snapshots: facts.snapshots, purgeableBytes: facts.purgeable)
+            limit: number, snapshots: facts.snapshots, purgeableBytes: facts.purgeable,
+            volumeMountPoint: facts.mountPoint)
         if let minSize { context.minimumBytes = minSize.bytes }
         let report = Recommender.recommend(graph: result.graph, context: context)
 

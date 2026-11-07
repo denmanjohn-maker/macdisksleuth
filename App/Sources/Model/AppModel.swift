@@ -188,18 +188,24 @@ final class AppModel {
         if announce { recommendations = nil }
         let generation = scanGeneration
         let stamp = graphStamp
-        let context = RecommendationContext(
-            snapshots: snapshots, purgeableBytes: capacities.map(\.purgeable))
-        recommendationContext = context
         let scanned = scannedPath
+        let mountPoint = volume?.mountPoint ?? "/"
         let notify = announce && notifyOnScanComplete
         Task.detached(priority: .userInitiated) {
+            // Facts for the volume that was actually scanned — an external
+            // drive's snapshots, not the boot disk's.
+            let volumeSnapshots = (try? await VolumeService.snapshots(ofVolume: mountPoint)) ?? []
+            let purgeable = (try? VolumeService.capacities(ofVolume: mountPoint))?.purgeable
+            let context = RecommendationContext(
+                snapshots: volumeSnapshots, purgeableBytes: purgeable, volumeMountPoint: mountPoint)
             let report = Recommender.recommend(graph: graph, context: context)
-            await MainActor.run {
-                guard self.scanGeneration == generation, self.graphStamp == stamp else { return }
+            let accepted = await MainActor.run { () -> Bool in
+                guard self.scanGeneration == generation, self.graphStamp == stamp else { return false }
+                self.recommendationContext = context
                 self.recommendations = report
+                return true
             }
-            if notify {
+            if notify && accepted {
                 await ScanNotifier.post(report: report, scannedPath: scanned)
             }
         }

@@ -82,7 +82,7 @@ public enum ScanEngine {
         let resultTask = Task<ScanResult, Error> {
             let start = ContinuousClock.now
 
-            let rootID = await builder.addRoot(name: canonical)
+            let rootID = await builder.addRoot(name: canonical, modified: Int64(rootStat.st_mtimespec.tv_sec))
             await queue.push([
                 DirWork(nodeID: rootID, parent: nil, name: canonical, path: canonical, dataRelativePath: nil)
             ])

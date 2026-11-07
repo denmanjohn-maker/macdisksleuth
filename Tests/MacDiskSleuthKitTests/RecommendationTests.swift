@@ -12,13 +12,14 @@ struct RecommendationTests {
     /// home/
     ///   Library/Caches/Homebrew/bottle.bin   300K   safe cache, 200 days stale (hint: brew cleanup)
     ///   Library/Caches/pip/wheel.bin         100K   safe cache (hint: pip cache purge)
-    ///   Library/Mail/huge.bin                900K   NEVER recommended
+    ///   Library/Mail/V10/huge.bin            900K   NEVER recommended
     ///   Pictures/Photos Library.photoslibrary/huge.bin 900K  NEVER recommended
     ///   proj/package.json + proj/node_modules/dep.bin 200K   build artifact
     ///   notproj/node_modules/dep.bin          40K   not a project (no package.json) and below the floor
     ///   .Trash/gone.bin                      150K   trash
     ///   Downloads/old.dmg (60 days old)      250K   stale download
     ///   Downloads/new.dmg (today)            250K   too recent to suggest
+    ///   Downloads/Old.photoslibrary/pic.bin (60 days old) 300K  protected even inside Downloads
     ///   Movies/a/clip.mov + Movies/b/clip.mov 300K each, same size, different bytes → duplicates
     ///   Documents/image.iso (60 days old)    400K   generic installer
     static func homeFixture() throws -> (FixtureTree, home: String) {
@@ -30,8 +31,8 @@ struct RecommendationTests {
         try fixture.setModificationDate("home/Library/Caches/Homebrew", to: Date(timeIntervalSinceNow: -200 * 86_400))
         try fixture.directory("home/Library/Caches/pip")
         try fixture.file("home/Library/Caches/pip/wheel.bin", size: 100 * kib)
-        try fixture.directory("home/Library/Mail")
-        try fixture.file("home/Library/Mail/huge.bin", size: 900 * kib)
+        try fixture.directory("home/Library/Mail/V10")
+        try fixture.file("home/Library/Mail/V10/huge.bin", size: 900 * kib)
         try fixture.directory("home/Pictures/Photos Library.photoslibrary")
         try fixture.file("home/Pictures/Photos Library.photoslibrary/huge.bin", size: 900 * kib)
         try fixture.directory("home/proj/node_modules")
@@ -45,6 +46,10 @@ struct RecommendationTests {
         try fixture.file("home/Downloads/old.dmg", size: 250 * kib)
         try fixture.file("home/Downloads/new.dmg", size: 250 * kib)
         try fixture.setModificationDate("home/Downloads/old.dmg", to: Date(timeIntervalSinceNow: -60 * 86_400))
+        try fixture.directory("home/Downloads/Old.photoslibrary")
+        try fixture.file("home/Downloads/Old.photoslibrary/pic.bin", size: 300 * kib)
+        try fixture.setModificationDate("home/Downloads/Old.photoslibrary/pic.bin", to: Date(timeIntervalSinceNow: -60 * 86_400))
+        try fixture.setModificationDate("home/Downloads/Old.photoslibrary", to: Date(timeIntervalSinceNow: -60 * 86_400))
         try fixture.directory("home/Movies/a")
         try fixture.directory("home/Movies/b")
         try fixture.file("home/Movies/a/clip.mov", size: 300 * kib)
@@ -120,7 +125,7 @@ struct RecommendationTests {
         let report = Recommender.recommend(graph: graph, context: Self.context(home: home))
 
         let downloads = try #require(recommendation(.downloads, in: report))
-        #expect(downloads.items.map { ($0.path as NSString).lastPathComponent } == ["old.dmg"])
+        #expect(downloads.items.map { ($0.path as NSString).lastPathComponent } == ["old.dmg"], "new.dmg is too recent and the Photos library is protected")
         #expect(downloads.items[0].note?.contains("installer") == true)
         #expect(downloads.items[0].note?.contains("untouched for") == true)
         #expect(within(downloads.freeable, of: Int64(250 * Self.kib)))
@@ -156,9 +161,28 @@ struct RecommendationTests {
         #expect(iso.canMoveToTrash)
         #expect(iso.node != nil)
 
+        // One clip.mov is the kept original, the other is listed once — as a
+        // duplicate, not again as a large video — so the total never counts it twice.
         let videos = report.recommendations.filter { $0.title.hasPrefix("Large video:") }
-        #expect(videos.count == 2)
+        #expect(videos.count == 1)
         #expect(videos.allSatisfy { $0.safety == .review })
+        let duplicates = try #require(recommendation(.duplicates, in: report))
+        let listedTwice = Set(videos.flatMap { $0.items.map(\.path) })
+            .intersection(duplicates.items.map(\.path))
+        #expect(listedTwice.isEmpty)
+        _ = fixture
+    }
+
+    @Test("Limiting a report trims the list and its headline total together")
+    func limitedReport() async throws {
+        let (fixture, home) = try Self.homeFixture()
+        let graph = try await scanGraph(home)
+        let full = Recommender.recommend(graph: graph, context: Self.context(home: home))
+        let two = full.limited(to: 2)
+        #expect(two.recommendations.count == 2)
+        #expect(two.recommendations.map(\.id) == Array(full.recommendations.prefix(2).map(\.id)))
+        #expect(two.totalFreeable == two.recommendations.reduce(Int64(0)) { $0 + $1.freeable })
+        #expect(full.limited(to: 100).recommendations.count == full.recommendations.count)
         _ = fixture
     }
 
@@ -195,35 +219,46 @@ struct RecommendationTests {
         _ = fixture
     }
 
-    @Test("Scanning protected content yields no recommendations, and says why")
+    @Test("Scanning protected content — or anything inside it — yields no recommendations, and says why")
     func excludedRoot() async throws {
         let (fixture, home) = try Self.homeFixture()
-        let graph = try await scanGraph(home + "/Library/Mail")
-        let report = Recommender.recommend(graph: graph, context: Self.context(home: home))
-
-        #expect(report.recommendations.isEmpty)
-        #expect(report.notes.contains { $0.contains("never suggests") })
+        for root in [home + "/Library/Mail", home + "/Library/Mail/V10"] {
+            let graph = try await scanGraph(root)
+            let report = Recommender.recommend(graph: graph, context: Self.context(home: home))
+            #expect(report.recommendations.isEmpty, "\(root)")
+            #expect(report.volumeAdvice == nil)
+            #expect(report.notes.contains { $0.contains("never suggests") }, "\(root)")
+        }
         _ = fixture
     }
 
-    @Test("Snapshots become a recommendation only when purgeable space is known")
+    @Test("Time Machine snapshots become volume advice with no invented size, targeting the scanned volume")
     func snapshots() async throws {
         let (fixture, home) = try Self.homeFixture()
         let graph = try await scanGraph(home)
-        let snapshot = SnapshotInfo(name: "com.apple.TimeMachine.2026-01-01-000000.local", uuid: nil, xid: nil, purgeable: true)
+        let timeMachine = SnapshotInfo(name: "com.apple.TimeMachine.2026-01-01-000000.local")
+        let systemUpdate = SnapshotInfo(name: "com.apple.os.update-ABC123")
 
         var context = Self.context(home: home)
-        context.snapshots = [snapshot]
+        context.snapshots = [systemUpdate]
         var report = Recommender.recommend(graph: graph, context: context)
-        #expect(recommendation(.snapshots, in: report) == nil)
-        #expect(report.notes.contains { $0.contains("snapshot") })
+        #expect(report.volumeAdvice == nil, "an OS update snapshot is not something tmutil can remove")
+        #expect(!report.notes.contains { $0.contains("Time Machine") })
 
+        context.snapshots = [timeMachine, systemUpdate]
         context.purgeableBytes = 5_000_000_000
+        context.volumeMountPoint = "/Volumes/My Disk"
         report = Recommender.recommend(graph: graph, context: context)
-        let snapshots = try #require(recommendation(.snapshots, in: report))
-        #expect(snapshots.freeable == 5_000_000_000)
-        #expect(!snapshots.canMoveToTrash)
-        #expect(report.recommendations.first?.category == .snapshots, "5 GB dwarfs the fixture")
+        let advice = try #require(report.volumeAdvice)
+        #expect(advice.category == .snapshots)
+        #expect(advice.title.contains("(1)"), "only the Time Machine snapshot counts")
+        #expect(advice.freeable == 0, "macOS reports no snapshot sizes, so none is claimed")
+        #expect(advice.action.contains("'/Volumes/My Disk'"))
+        #expect(advice.caveats.contains { $0.contains("5.00 GB") })
+        #expect(!advice.canMoveToTrash)
+        #expect(recommendation(.snapshots, in: report) == nil, "never in the ranked list")
+        #expect(report.totalFreeable == report.recommendations.reduce(Int64(0)) { $0 + $1.freeable })
+        #expect(report.notes.contains { $0.contains("1 local Time Machine snapshot exists") })
         _ = fixture
     }
 

@@ -25,6 +25,9 @@ struct RecommendationsView: View {
                             ForEach(Array(report.recommendations.enumerated()), id: \.element.id) { index, recommendation in
                                 RecommendationCard(recommendation: recommendation, rank: index + 1)
                             }
+                            if let advice = report.volumeAdvice {
+                                VolumeAdviceCard(advice: advice)
+                            }
                             ForEach(report.notes, id: \.self) { note in
                                 Text(note)
                                     .font(type.caption)
@@ -116,11 +119,19 @@ struct RecommendationCard: View {
                     }
                 }
             } else if let only = recommendation.items.first {
-                Text(context.displayPath(only.path))
-                    .font(type.caption)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .textSelection(.enabled)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(context.displayPath(only.path))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                    if let note = only.note, note != recommendation.title {
+                        Text("— \(note)")
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .textSelection(.enabled)
+                    }
+                }
+                .font(type.caption)
             }
 
             ForEach(recommendation.caveats, id: \.self) { caveat in
@@ -217,6 +228,44 @@ struct RecommendationCard: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(color.opacity(0.12), in: Capsule())
+    }
+}
+
+/// Snapshot advice: no byte figure, because macOS reports none.
+struct VolumeAdviceCard: View {
+    @Environment(\.typography) private var type
+    var advice: Recommendation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .foregroundStyle(.secondary)
+                Text(advice.title)
+                    .font(type.headline)
+                    .lineLimit(2)
+                Spacer()
+                Text("size unknown")
+                    .font(type.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text(advice.reason)
+                .font(type.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(advice.caveats, id: \.self) { caveat in
+                Label(caveat, systemImage: "exclamationmark.triangle")
+                    .font(type.caption2)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Label(advice.action, systemImage: "arrow.turn.down.right")
+                .font(type.caption)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+        }
+        .padding(12)
+        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
     }
 }
 

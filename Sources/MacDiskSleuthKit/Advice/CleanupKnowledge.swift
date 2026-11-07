@@ -39,9 +39,10 @@ struct CleanupGroup: Sendable {
 enum CleanupKnowledge {
     // MARK: - Hard exclusions
 
-    /// Never recommended and never descended into for generic finds: the OS,
-    /// system databases, mail stores, photo libraries, cloud-synced folders
-    /// (deleting there deletes everywhere), version control, backup sets.
+    /// Protected: never recommended, never listed as a member, never descended
+    /// into for generic finds — the OS, system databases, mail stores, photo
+    /// libraries, cloud-synced folders (deleting there deletes everywhere),
+    /// version control, backup sets.
     static let excludedPatterns: [String] = [
         "/System", "/usr", "/bin", "/sbin", "/cores", "/dev", "/Network",
         "/private/var/db", "/private/var/vm", "/private/etc", "/private/var/root",
@@ -54,6 +55,12 @@ enum CleanupKnowledge {
         "/**/Backups.backupdb", "/**/*.sparsebundle",
         "/**/.Spotlight-V100", "/**/.fseventsd", "/**/.DocumentRevisions-V100",
         "/**/.TemporaryItems", "/**/.PKInstallSandboxManager*",
+    ]
+
+    /// Opaque bundles: a single thing to the user, so never descended into
+    /// and never mined for generic large files — but a stale `Foo.app` in
+    /// Downloads is still a legitimate member of a recommendation.
+    static let opaquePatterns: [String] = [
         "/**/*.app", "/**/*.framework", "/**/*.xcodeproj", "/**/*.xcworkspace",
     ]
 
@@ -295,7 +302,7 @@ enum CleanupKnowledge {
         rules.append(cache(["~/.bun/install/cache"], title: "Bun cache", action: "bun pm cache rm"))
         rules.append(cache(["~/.gradle/caches", "~/.gradle/wrapper/dists"], title: "Gradle caches", action: "rm -rf ~/.gradle/caches  (Gradle re-downloads on the next build)"))
         rules.append(cache(["~/.m2/repository"], title: "Maven repository", action: "rm -rf ~/.m2/repository  (Maven re-downloads on the next build)"))
-        rules.append(cache(["~/.ivy2/cache", "~/.sbt"], title: "Ivy/sbt caches", action: "Delete; sbt re-resolves dependencies."))
+        rules.append(cache(["~/.ivy2/cache", "~/.sbt/boot"], title: "Ivy/sbt caches", action: "Delete; sbt re-resolves dependencies. (~/.sbt itself also holds your global sbt settings and plugins, so only its boot cache is suggested.)"))
         rules.append(cache(["~/.cargo/registry", "~/.cargo/git"], title: "Cargo registry", action: "cargo cache -a  (cargo-cache) — or delete; re-downloaded on build"))
         rules.append(cache(["~/go/pkg/mod"], title: "Go module cache", action: "go clean -modcache"))
         rules.append(cache(["~/.cocoapods/repos"], title: "CocoaPods specs", action: "pod repo remove master  (CDN is used instead)"))

@@ -84,20 +84,24 @@ struct Scan: AsyncParsableCommand {
         let facts = await factsTask.value
         let snapshotCount = facts.snapshots.count
 
+        // The notification always names the top three; the printed list is
+        // exactly what --recommendations asked for.
         let context = RecommendationContext(
             limit: max(recommendations, notify ? 3 : 0),
-            snapshots: facts.snapshots, purgeableBytes: facts.purgeable)
-        let report: RecommendationReport? =
+            snapshots: facts.snapshots, purgeableBytes: facts.purgeable,
+            volumeMountPoint: facts.mountPoint)
+        let fullReport: RecommendationReport? =
             recommendations > 0 || notify
             ? Recommender.recommend(graph: result.graph, context: context) : nil
+        let report = fullReport?.limited(to: recommendations)
 
         if json {
             try printJSON(result: result, snapshotCount: snapshotCount, report: report)
         } else {
             printHuman(result: result, snapshotCount: snapshotCount, report: report, context: context)
         }
-        if notify, let report {
-            await RecommendationPrinter.notify(report: report, scannedPath: result.graph.rootPath)
+        if notify, let fullReport {
+            await RecommendationPrinter.notify(report: fullReport, scannedPath: result.graph.rootPath)
         }
     }
 
