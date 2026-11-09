@@ -370,6 +370,33 @@ struct RecommendationTests {
         #expect(!relocated.isInApplicationsFolder("/Volumes/Data/other/Applications/Foo.app"))
     }
 
+    @Test("A home folder, any account folder and /Users are never trashed; what is inside them is")
+    func accountFolderPaths() {
+        let context = RecommendationContext(homeDirectory: "/Users/sleuth")
+        for path in [
+            "/Users", "/Users/sleuth", "/Users/other", "/Users/Shared",
+            "/System/Volumes/Data/Users", "/System/Volumes/Data/Users/sleuth",
+        ] {
+            #expect(context.isAccountFolder(path), "\(path)")
+            #expect(context.trashRefusal(for: path) == RecommendationContext.accountFolderNotice, "\(path)")
+        }
+        for path in [
+            "/", "/Users/sleuth/Documents", "/Users/sleuth/Downloads/Foo.app", "/Users/Shared/Games",
+            "/UsersBackup", "/Volumes/Backup/Users/sleuth", "/System/Volumes/Data",
+        ] {
+            #expect(!context.isAccountFolder(path), "\(path)")
+        }
+        #expect(context.trashRefusal(for: "/Users/sleuth/Downloads/old.dmg") == nil)
+        #expect(context.trashRefusal(for: "/Users/sleuth/Applications/Foo.app") == RecommendationContext.applicationsFolderNotice)
+
+        // A relocated home is protected where it lives; its parent volume folder is not.
+        let relocated = RecommendationContext(homeDirectory: "/Volumes/Data/sleuth")
+        #expect(relocated.isAccountFolder("/Volumes/Data/sleuth"))
+        #expect(relocated.isAccountFolder("/Users/sleuth"), "any account folder under /Users")
+        #expect(!relocated.isAccountFolder("/Volumes/Data"))
+        #expect(!relocated.isAccountFolder("/Volumes/Data/sleuth/Documents"))
+    }
+
     @Test("Paths display relative to home")
     func displayPaths() {
         let context = RecommendationContext(homeDirectory: "/Users/sleuth")

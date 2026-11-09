@@ -270,6 +270,30 @@ public struct RecommendationContext: Sendable {
     public static let applicationsFolderNotice =
         "MacDiskSleuth never moves the Applications folder, or anything in it, to the Trash. Uninstall apps from Finder or with their own uninstaller."
 
+    /// Shown wherever the app declines to trash a home folder or /Users.
+    public static let accountFolderNotice =
+        "MacDiskSleuth never moves a home folder, or /Users, to the Trash. Delete things inside it instead."
+
+    /// Why the app must never move `path` to the Trash itself, or nil when it
+    /// may. The one check behind every deletion path and every locked member.
+    public func trashRefusal(for path: String) -> String? {
+        if isInApplicationsFolder(path) { return Self.applicationsFolderNotice }
+        if isAccountFolder(path) { return Self.accountFolderNotice }
+        return nil
+    }
+
+    /// Whether `path` is `/Users`, an account folder directly under it
+    /// (`/Users/*`, including Shared), or the home directory itself, wherever
+    /// that lives — also when reached through `/System/Volumes/Data`. Trashing
+    /// one takes every document and every app in it; what is inside stays
+    /// deletable item by item.
+    public func isAccountFolder(_ path: String) -> Bool {
+        let components = Self.withoutDataVolume(path.split(separator: "/", omittingEmptySubsequences: true))
+        if components.first == "Users", components.count <= 2 { return true }
+        let home = Self.withoutDataVolume(homeDirectory.split(separator: "/", omittingEmptySubsequences: true))
+        return !home.isEmpty && components.elementsEqual(home)
+    }
+
     /// Whether `path` is an Applications folder — `/Applications`,
     /// `~/Applications` or any `/Users/*/Applications`, also when reached
     /// through the Data volume as `/System/Volumes/Data/…` — or anything

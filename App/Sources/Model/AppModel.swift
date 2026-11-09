@@ -324,21 +324,20 @@ final class AppModel {
         window.identifier?.rawValue.hasPrefix(MacDiskSleuthApp.recommendationWindowID) ?? false
     }
 
-    /// Whether the app refuses to trash this node: an Applications folder or
-    /// anything inside one (an app, a file in it, a subfolder of apps). Checked
-    /// by every deletion path, so the Inspector can't do what the recommendations won't.
-    func isInApplicationsFolder(_ node: NodeID) -> Bool {
-        guard let graph else { return false }
-        return recommendationContext.isInApplicationsFolder(graph.path(of: node))
+    /// Why the app refuses to trash this node, or nil when it may: an
+    /// Applications folder or anything inside one, a home folder, /Users.
+    /// Checked by every deletion path, so the Inspector can't do what the
+    /// recommendations won't.
+    func trashRefusal(for node: NodeID) -> String? {
+        guard let graph else { return nil }
+        return recommendationContext.trashRefusal(for: graph.path(of: node))
     }
 
     /// Move to Trash and patch the graph. Returns an error message, or nil on success.
     func moveToTrash(_ node: NodeID) -> String? {
         guard let graph else { return "No scan loaded." }
         let path = graph.path(of: node)
-        if recommendationContext.isInApplicationsFolder(path) {
-            return RecommendationContext.applicationsFolderNotice
-        }
+        if let refusal = recommendationContext.trashRefusal(for: path) { return refusal }
         do {
             try FileManager.default.trashItem(at: URL(fileURLWithPath: path), resultingItemURL: nil)
         } catch {
@@ -376,10 +375,9 @@ final class AppModel {
             let path = graph.path(of: node)
             if graph.isRemoved(node) {
                 result.trashed.append(node)
-            } else if recommendationContext.isInApplicationsFolder(path) {
-                // Never, whatever the list said: the Applications folder and its apps stay.
-                result.failures.append(
-                    TrashFailure(node: node, path: path, message: RecommendationContext.applicationsFolderNotice))
+            } else if let refusal = recommendationContext.trashRefusal(for: path) {
+                // Never, whatever the list said: Applications folders, apps and homes stay.
+                result.failures.append(TrashFailure(node: node, path: path, message: refusal))
             } else {
                 pending.append(TrashWorkItem(node: node, path: path, unique: graph.sizes(of: node).unique))
             }
