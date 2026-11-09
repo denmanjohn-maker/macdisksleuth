@@ -311,7 +311,7 @@ struct RecommendationTests {
     }
 
     @Test("Apps in an Applications folder are pointed out but never offered for the Trash")
-    func installedApplicationsAreAdviceOnly() async throws {
+    func applicationsAreAdviceOnly() async throws {
         let (fixture, home) = try Self.applicationsFixture()
         let graph = try await scanGraph(home)
         let report = Recommender.recommend(graph: graph, context: Self.context(home: home))
@@ -341,29 +341,33 @@ struct RecommendationTests {
         _ = fixture
     }
 
-    @Test("An installed application is any .app under an Applications folder, or anything inside one")
-    func installedApplicationPaths() {
+    @Test("An Applications folder, or anything in it, is protected — also through the Data volume")
+    func applicationsFolderPaths() {
         let context = RecommendationContext(homeDirectory: "/Users/sleuth")
         for path in [
-            "/Applications/Safari.app", "/Applications/Utilities/Terminal.app",
-            "/Applications/Xcode.app/Contents/Developer", "/Applications/Install macOS Sonoma.app",
-            "/Users/sleuth/Applications/Foo.app", "/Users/other/Applications/Foo.APP",
-            "/Users/other/Applications/Games/Foo.app/Contents/Resources/big.bin",
+            "/Applications", "/Applications/Safari.app", "/Applications/Utilities",
+            "/Applications/Utilities/Terminal.app", "/Applications/Xcode.app/Contents/Developer",
+            "/Applications/Install macOS Sonoma.app", "/Applications/Readme.txt",
+            "/Users/sleuth/Applications", "/Users/sleuth/Applications/Foo.app",
+            "/Users/other/Applications/Foo.APP", "/Users/other/Applications/Games/Foo.app/Contents/Resources/big.bin",
+            "/System/Volumes/Data/Applications", "/System/Volumes/Data/Applications/Foo.app",
+            "/System/Volumes/Data/Users/other/Applications", "/System/Volumes/Data/Users/sleuth/Applications/Foo.app",
         ] {
-            #expect(context.isInstalledApplication(path), "\(path)")
+            #expect(context.isInApplicationsFolder(path), "\(path)")
         }
         for path in [
-            "/Applications", "/Applications/Utilities", "/Applications/Readme.txt",
+            "/", "/Users", "/Users/sleuth", "/System/Volumes/Data", "/System/Volumes/Data/Users/sleuth",
             "/Users/sleuth/Downloads/Foo.app", "/Users/sleuth/Desktop/Applications/Foo.app",
-            "/opt/Applications/Foo.app", "/Volumes/Backup/Applications/Foo.app", "/",
+            "/opt/Applications/Foo.app", "/Volumes/Backup/Applications/Foo.app", "/ApplicationsBackup/Foo.app",
         ] {
-            #expect(!context.isInstalledApplication(path), "\(path)")
+            #expect(!context.isInApplicationsFolder(path), "\(path)")
         }
 
-        // A relocated home still counts as ~/Applications.
+        // A relocated home still counts as ~/Applications; another account elsewhere does not.
         let relocated = RecommendationContext(homeDirectory: "/Volumes/Data/sleuth")
-        #expect(relocated.isInstalledApplication("/Volumes/Data/sleuth/Applications/Foo.app"))
-        #expect(!relocated.isInstalledApplication("/Volumes/Data/other/Applications/Foo.app"))
+        #expect(relocated.isInApplicationsFolder("/Volumes/Data/sleuth/Applications"))
+        #expect(relocated.isInApplicationsFolder("/Volumes/Data/sleuth/Applications/Foo.app"))
+        #expect(!relocated.isInApplicationsFolder("/Volumes/Data/other/Applications/Foo.app"))
     }
 
     @Test("Paths display relative to home")

@@ -82,7 +82,7 @@ A clone family (one cloneID) is the set of files wholly sharing extents; it is c
 - Fix sheets are presented by `RecommendationsView` and `RecommendationWindowView` (`.sheet(item:)` on a `Recommendation` snapshot), never by a card or detail view, so the result summary survives the list recomputing. `FileGraph.isRemoved` is ancestor-aware; edits clamp sizes at 0 and keep unique ≤ physical, and shared-byte accounting is approximate until a rescan.
 - `AppModel.openWindow` is captured from SwiftUI by `RootView` / `RecommendationWindowView`; `AppModel.showResultsWindow()` brings the results window forward or reopens it (used by the Finder Quick Action and "Show Here").
 - `Recommendation.isFixable` / `preselectedItemIDs` / `CleanupCategory.membersAreTrashable` / `Item.lockedReason` (Kit) decide what the Fix flow offers and pre-checks; keep that logic in the Kit so `swift test` covers it.
-- Apps in an Applications folder are never trashed by the app. `RecommendationContext.isInstalledApplication(_:)` is the single predicate: the recommender uses it to clear `canMoveToTrash` and lock members, and `AppModel.moveToTrash` (both overloads) re-checks it so the Inspector's button can't bypass the recommendations.
+- An Applications folder (`/Applications`, `~/Applications`, `/Users/*/Applications`, also via `/System/Volumes/Data`) and everything in it are never trashed by the app. `RecommendationContext.isInApplicationsFolder(_:)` is the single predicate: the recommender uses it to clear `canMoveToTrash` and lock members, and `AppModel.moveToTrash` (both overloads) re-checks it so the Inspector's button can't bypass the recommendations.
 - `applicationShouldTerminateAfterLastWindowClosed` stays `true`; recommendation windows count as windows.
 
 ## Repo layout

@@ -367,12 +367,12 @@ private struct Engine {
             let date = graph.newestModified(of: node)
             if let date { result.newest = max(result.newest ?? date, date) }
             if sizes.unique >= itemFloor {
-                // Apps in an Applications folder are listed, never trashed from the app.
-                let locked = context.isInstalledApplication(path)
+                // Anything in an Applications folder is listed, never trashed from the app.
+                let locked = context.isInApplicationsFolder(path)
                 result.items.append(
                     Recommendation.Item(
                         node: node, path: path, sizes: sizes, newestModified: date, note: note,
-                        lockedReason: locked ? RecommendationContext.installedApplicationNotice : nil))
+                        lockedReason: locked ? RecommendationContext.applicationsFolderNotice : nil))
             }
         }
 
@@ -668,9 +668,9 @@ private struct Engine {
             caveats.append("macOS already counts some of this as purgeable.")
         }
 
-        // An installed application is pointed out, never trashed by the app —
-        // whatever the rule or category that found it says.
-        let installedApp = node.map { context.isInstalledApplication(graph.path(of: $0)) } ?? false
+        // An Applications folder, or anything in it, is pointed out, never
+        // trashed by the app — whatever the rule or category that found it says.
+        let inApplications = node.map { context.isInApplicationsFolder(graph.path(of: $0)) } ?? false
 
         // Rank over every member, then keep only the largest for display, so
         // the storage cap never changes the order.
@@ -678,7 +678,7 @@ private struct Engine {
             id: id, category: category, title: title, safety: safety, reason: reason, action: action,
             node: node, items: items, itemCount: items.count,
             sizes: totals, newestModified: members.newest, caveats: caveats,
-            confidence: 0, canMoveToTrash: canMoveToTrash && !installedApp, score: 0)
+            confidence: 0, canMoveToTrash: canMoveToTrash && !inApplications, score: 0)
         let ranked = rank(recommendation)
         recommendation.score = ranked.score
         recommendation.confidence = ranked.confidence

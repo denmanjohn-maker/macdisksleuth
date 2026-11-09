@@ -324,20 +324,20 @@ final class AppModel {
         window.identifier?.rawValue.hasPrefix(MacDiskSleuthApp.recommendationWindowID) ?? false
     }
 
-    /// Whether the app refuses to trash this node: an app bundle in an
-    /// Applications folder, or anything inside one. Checked by every deletion
-    /// path, so the Inspector can't do what the recommendations won't.
-    func isInstalledApplication(_ node: NodeID) -> Bool {
+    /// Whether the app refuses to trash this node: an Applications folder or
+    /// anything inside one (an app, a file in it, a subfolder of apps). Checked
+    /// by every deletion path, so the Inspector can't do what the recommendations won't.
+    func isInApplicationsFolder(_ node: NodeID) -> Bool {
         guard let graph else { return false }
-        return recommendationContext.isInstalledApplication(graph.path(of: node))
+        return recommendationContext.isInApplicationsFolder(graph.path(of: node))
     }
 
     /// Move to Trash and patch the graph. Returns an error message, or nil on success.
     func moveToTrash(_ node: NodeID) -> String? {
         guard let graph else { return "No scan loaded." }
         let path = graph.path(of: node)
-        if recommendationContext.isInstalledApplication(path) {
-            return RecommendationContext.installedApplicationNotice
+        if recommendationContext.isInApplicationsFolder(path) {
+            return RecommendationContext.applicationsFolderNotice
         }
         do {
             try FileManager.default.trashItem(at: URL(fileURLWithPath: path), resultingItemURL: nil)
@@ -376,10 +376,10 @@ final class AppModel {
             let path = graph.path(of: node)
             if graph.isRemoved(node) {
                 result.trashed.append(node)
-            } else if recommendationContext.isInstalledApplication(path) {
-                // Never, whatever the list said: apps in the Applications folder stay.
+            } else if recommendationContext.isInApplicationsFolder(path) {
+                // Never, whatever the list said: the Applications folder and its apps stay.
                 result.failures.append(
-                    TrashFailure(node: node, path: path, message: RecommendationContext.installedApplicationNotice))
+                    TrashFailure(node: node, path: path, message: RecommendationContext.applicationsFolderNotice))
             } else {
                 pending.append(TrashWorkItem(node: node, path: path, unique: graph.sizes(of: node).unique))
             }
