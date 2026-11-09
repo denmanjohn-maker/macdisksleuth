@@ -29,6 +29,7 @@ struct InspectorView: View {
         let sizes = graph.sizes(of: node)
         let flags = graph.flags(of: node)
         let isRoot = node == graph.root
+        let inApplicationsFolder = model.isInApplicationsFolder(node)
 
         return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -79,9 +80,17 @@ struct InspectorView: View {
                     } label: {
                         Label("Move to Trash", systemImage: "trash")
                     }
-                    .disabled(isRoot)
+                    .disabled(isRoot || inApplicationsFolder)
+                    .help(inApplicationsFolder ? RecommendationContext.applicationsFolderNotice : "")
                 }
                 .controlSize(.small)
+
+                if inApplicationsFolder {
+                    Label(RecommendationContext.applicationsFolderNotice, systemImage: "lock")
+                        .font(type.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 if let deleteError {
                     Text(deleteError).font(type.caption).foregroundStyle(.red)

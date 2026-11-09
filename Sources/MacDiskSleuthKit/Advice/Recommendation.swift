@@ -120,14 +120,24 @@ public struct Recommendation: Sendable, Identifiable {
         public var newestModified: Date?
         /// Per-item context: which cache this is, how to clear it, what it duplicates.
         public var note: String?
+        /// Why the app must never move this member to the Trash itself (it is
+        /// in an Applications folder); nil when the member may be trashed.
+        public var lockedReason: String?
 
-        public init(node: NodeID?, path: String, sizes: Sizes, newestModified: Date?, note: String? = nil) {
+        public init(
+            node: NodeID?, path: String, sizes: Sizes, newestModified: Date?, note: String? = nil,
+            lockedReason: String? = nil
+        ) {
             self.node = node
             self.path = path
             self.sizes = sizes
             self.newestModified = newestModified
             self.note = note
+            self.lockedReason = lockedReason
         }
+
+        /// In the scanned tree and not locked, so the Fix flow may act on it.
+        public var isActionable: Bool { node != nil && lockedReason == nil }
     }
 
     public var id: String
@@ -256,6 +266,32 @@ public struct RecommendationContext: Sendable {
         return "~/" + path.dropFirst(prefix.count)
     }
 
+    /// Shown wherever the app declines to trash something in an Applications folder.
+    public static let applicationsFolderNotice =
+        "MacDiskSleuth never moves the Applications folder, or anything in it, to the Trash. Uninstall apps from Finder or with their own uninstaller."
+
+    /// Whether `path` is an Applications folder — `/Applications`,
+    /// `~/Applications` or any `/Users/*/Applications`, also when reached
+    /// through the Data volume as `/System/Volumes/Data/…` — or anything
+    /// inside one: an app bundle, a file inside a bundle, or a subfolder such
+    /// as `/Applications/Utilities`. Trashing a folder takes every app in it,
+    /// so the whole subtree is advice only: uninstalling is the user's job,
+    /// or the app's own uninstaller's.
+    public func isInApplicationsFolder(_ path: String) -> Bool {
+        let components = Self.withoutDataVolume(path.split(separator: "/", omittingEmptySubsequences: true))
+        if components.first == "Applications" { return true }
+        if components.count >= 3, components[0] == "Users", components[2] == "Applications" { return true }
+        let home = Self.withoutDataVolume(homeDirectory.split(separator: "/", omittingEmptySubsequences: true))
+        return components.count > home.count
+            && components.prefix(home.count).elementsEqual(home)
+            && components[home.count] == "Applications"
+    }
+
+    /// `/System/Volumes/Data/Users/…` is `/Users/…` seen through the Data volume mount.
+    private static func withoutDataVolume(_ components: [Substring]) -> [Substring] {
+        components.starts(with: ["System", "Volumes", "Data"]) ? Array(components.dropFirst(3)) : components
+    }
+
     /// Resolve symlinks the way the scanner does for its root, so a home such
     /// as /var/root or a relocated ~ compares equal to graph paths.
     static func canonical(_ path: String) -> String {
@@ -312,13 +348,15 @@ extension CleanupCategory {
 }
 
 extension Recommendation {
-    /// Members that exist in the scanned tree and so can be acted on.
-    public var actionableItems: [Item] { items.filter { $0.node != nil } }
+    /// Members that exist in the scanned tree and are not locked (Applications
+    /// folder content), so they can be acted on.
+    public var actionableItems: [Item] { items.filter(\.isActionable) }
 
     /// Whether the guided "Fix" flow (pick members, move them to the Trash)
     /// applies. Independent of `canMoveToTrash`, which is about the primary
     /// node: a per-app cache breakdown or a duplicates group has no single
-    /// trashable node yet is exactly what Fix is for.
+    /// trashable node yet is exactly what Fix is for. A recommendation whose
+    /// every member sits in an Applications folder is advice only.
     public var isFixable: Bool { category.membersAreTrashable && !actionableItems.isEmpty }
 
     /// Members the Fix flow starts with checked: everything for a `safe`

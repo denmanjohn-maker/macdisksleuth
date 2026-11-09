@@ -36,7 +36,7 @@ struct FixRecommendationView: View {
     private var scanChanged: Bool { model.scanGeneration != scanGeneration }
 
     private var context: RecommendationContext { model.recommendationContext }
-    private var actionable: [Recommendation.Item] { items.filter { $0.node != nil } }
+    private var actionable: [Recommendation.Item] { items.filter(\.isActionable) }
     private var checkedItems: [Recommendation.Item] { actionable.filter { checked.contains($0.id) } }
     private var checkedBytes: Int64 { checkedItems.reduce(Int64(0)) { $0 + $1.sizes.unique } }
 
@@ -126,7 +126,7 @@ struct FixRecommendationView: View {
     }
 
     private func row(_ item: Recommendation.Item) -> some View {
-        let canAct = item.node != nil
+        let canAct = item.isActionable
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
             // The path is the accessible name; it stays hidden visually.
             Toggle(context.displayPath(item.path), isOn: binding(for: item.id))
@@ -138,7 +138,12 @@ struct FixRecommendationView: View {
                     .font(type.body)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                if let note = item.note {
+                if let locked = item.lockedReason {
+                    Label(locked, systemImage: "lock")
+                        .font(type.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                } else if let note = item.note {
                     Text(note)
                         .font(type.caption)
                         .foregroundStyle(.tertiary)
@@ -152,7 +157,10 @@ struct FixRecommendationView: View {
                 .foregroundStyle(.secondary)
         }
         .foregroundStyle(canAct ? .primary : .tertiary)
-        .help(canAct ? item.path : "Not in the scanned tree — can't be moved to the Trash from here")
+        .help(
+            canAct
+                ? item.path
+                : item.lockedReason ?? "Not in the scanned tree — can't be moved to the Trash from here")
         .contextMenu {
             if let node = item.node {
                 Button("Reveal in Finder") { model.revealInFinder(node) }

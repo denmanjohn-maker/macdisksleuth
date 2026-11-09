@@ -61,7 +61,7 @@ macdisksleuth recommend ~ --json             # for scripts
 macdisksleuth scan ~ --notify                # scan, then a macOS notification with the top finds
 ```
 
-Nothing is ever deleted by `recommend` or `scan`. In the app, Move to Trash asks first and shows the honest freeable figure, and Fix requires Touch ID, Apple Watch, or your login password before it moves anything — always to the Trash, never permanently.
+Nothing is ever deleted by `recommend` or `scan`. In the app, Move to Trash asks first and shows the honest freeable figure, and Fix requires Touch ID, Apple Watch, or your login password before it moves anything — always to the Trash, never permanently. Apps in `/Applications` or `~/Applications` are pointed out as large but never moved to the Trash by the app — nor is anything else in those folders, or the folders themselves, from recommendations or the inspector; uninstall apps yourself.
 
 Built on `getattrlistbulk` with APFS extended attributes (`PRIVATESIZE`, `CLONEID`, extent flags) — the fast path, with per-file clone/sparse/dataless awareness and zero file opens (iCloud placeholders are never downloaded).
 

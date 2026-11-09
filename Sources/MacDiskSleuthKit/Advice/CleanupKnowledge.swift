@@ -126,7 +126,7 @@ enum CleanupKnowledge {
         "applications": CleanupGroup(
             title: "Large applications",
             reason: "Apps you no longer use are the easiest gigabytes to give back. Sizes shown are real on-disk bytes after compression.",
-            action: "Drag to the Trash, or use the app's own uninstaller when it has one."),
+            action: "MacDiskSleuth never trashes apps in the Applications folder for you: drag the app to the Trash in Finder, or use its own uninstaller when it has one."),
         "ci-workspaces": CleanupGroup(
             title: "CI agent workspaces",
             reason: "Checked-out sources and build output from past pipeline runs; the next run re-fetches what it needs.",
