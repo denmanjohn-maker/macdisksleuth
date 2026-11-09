@@ -288,6 +288,84 @@ struct RecommendationTests {
         _ = fixture
     }
 
+    /// Apps where they are installed, plus a stale app parked in Downloads as the control.
+    ///
+    /// home/
+    ///   Applications/Big.app/Contents/MacOS/big.bin                     300K  installed app
+    ///   Applications/Install macOS Test.app/Contents/SharedSupport/pkg.bin 300K  macOS installer
+    ///   Downloads/Old.app/Contents/x.bin (60 days old)                  200K  not installed: still fixable
+    static func applicationsFixture() throws -> (FixtureTree, home: String) {
+        let fixture = try FixtureTree()
+        try fixture.directory("home")
+        try fixture.directory("home/Applications/Big.app/Contents/MacOS")
+        try fixture.file("home/Applications/Big.app/Contents/MacOS/big.bin", size: 300 * kib)
+        try fixture.directory("home/Applications/Install macOS Test.app/Contents/SharedSupport")
+        try fixture.file("home/Applications/Install macOS Test.app/Contents/SharedSupport/pkg.bin", size: 300 * kib)
+        try fixture.directory("home/Downloads/Old.app/Contents")
+        try fixture.file("home/Downloads/Old.app/Contents/x.bin", size: 200 * kib)
+        let stale = Date(timeIntervalSinceNow: -60 * 86_400)
+        try fixture.setModificationDate("home/Downloads/Old.app/Contents/x.bin", to: stale)
+        try fixture.setModificationDate("home/Downloads/Old.app/Contents", to: stale)
+        try fixture.setModificationDate("home/Downloads/Old.app", to: stale)
+        return (fixture, fixture.path("home"))
+    }
+
+    @Test("Apps in an Applications folder are pointed out but never offered for the Trash")
+    func installedApplicationsAreAdviceOnly() async throws {
+        let (fixture, home) = try Self.applicationsFixture()
+        let graph = try await scanGraph(home)
+        let report = Recommender.recommend(graph: graph, context: Self.context(home: home))
+
+        let apps = try #require(recommendation(.applications, in: report))
+        let names = apps.items.map { ($0.path as NSString).lastPathComponent }
+        #expect(names == ["Big.app"], "the macOS installer belongs to the installers rule")
+        #expect(apps.items.allSatisfy { $0.lockedReason != nil })
+        #expect(apps.actionableItems.isEmpty)
+        #expect(!apps.canMoveToTrash)
+        #expect(!apps.isFixable, "advice only: no Fix, no Move to Trash")
+        #expect(apps.action.contains("never trashes apps"))
+
+        let installers = try #require(report.recommendations.first { $0.id == "group:installers" })
+        #expect(installers.items.count == 1)
+        #expect(installers.items[0].path.hasSuffix("/Applications/Install macOS Test.app"))
+        #expect(installers.items[0].lockedReason != nil)
+        #expect(installers.node != nil, "a single installer still has a node to reveal")
+        #expect(!installers.canMoveToTrash)
+        #expect(!installers.isFixable)
+
+        // The same bundle name outside an Applications folder is an ordinary stale download.
+        let downloads = try #require(recommendation(.downloads, in: report))
+        #expect(downloads.items.map { ($0.path as NSString).lastPathComponent } == ["Old.app"])
+        #expect(downloads.items[0].lockedReason == nil)
+        #expect(downloads.isFixable)
+        _ = fixture
+    }
+
+    @Test("An installed application is any .app under an Applications folder, or anything inside one")
+    func installedApplicationPaths() {
+        let context = RecommendationContext(homeDirectory: "/Users/sleuth")
+        for path in [
+            "/Applications/Safari.app", "/Applications/Utilities/Terminal.app",
+            "/Applications/Xcode.app/Contents/Developer", "/Applications/Install macOS Sonoma.app",
+            "/Users/sleuth/Applications/Foo.app", "/Users/other/Applications/Foo.APP",
+            "/Users/other/Applications/Games/Foo.app/Contents/Resources/big.bin",
+        ] {
+            #expect(context.isInstalledApplication(path), "\(path)")
+        }
+        for path in [
+            "/Applications", "/Applications/Utilities", "/Applications/Readme.txt",
+            "/Users/sleuth/Downloads/Foo.app", "/Users/sleuth/Desktop/Applications/Foo.app",
+            "/opt/Applications/Foo.app", "/Volumes/Backup/Applications/Foo.app", "/",
+        ] {
+            #expect(!context.isInstalledApplication(path), "\(path)")
+        }
+
+        // A relocated home still counts as ~/Applications.
+        let relocated = RecommendationContext(homeDirectory: "/Volumes/Data/sleuth")
+        #expect(relocated.isInstalledApplication("/Volumes/Data/sleuth/Applications/Foo.app"))
+        #expect(!relocated.isInstalledApplication("/Volumes/Data/other/Applications/Foo.app"))
+    }
+
     @Test("Paths display relative to home")
     func displayPaths() {
         let context = RecommendationContext(homeDirectory: "/Users/sleuth")

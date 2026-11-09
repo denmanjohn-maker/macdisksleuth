@@ -120,14 +120,24 @@ public struct Recommendation: Sendable, Identifiable {
         public var newestModified: Date?
         /// Per-item context: which cache this is, how to clear it, what it duplicates.
         public var note: String?
+        /// Why the app must never move this member to the Trash itself (an
+        /// installed application); nil when the member may be trashed.
+        public var lockedReason: String?
 
-        public init(node: NodeID?, path: String, sizes: Sizes, newestModified: Date?, note: String? = nil) {
+        public init(
+            node: NodeID?, path: String, sizes: Sizes, newestModified: Date?, note: String? = nil,
+            lockedReason: String? = nil
+        ) {
             self.node = node
             self.path = path
             self.sizes = sizes
             self.newestModified = newestModified
             self.note = note
+            self.lockedReason = lockedReason
         }
+
+        /// In the scanned tree and not locked, so the Fix flow may act on it.
+        public var isActionable: Bool { node != nil && lockedReason == nil }
     }
 
     public var id: String
@@ -256,6 +266,32 @@ public struct RecommendationContext: Sendable {
         return "~/" + path.dropFirst(prefix.count)
     }
 
+    /// Shown wherever the app declines to trash an installed application.
+    public static let installedApplicationNotice =
+        "Installed application — MacDiskSleuth never moves apps in the Applications folder to the Trash. Uninstall it from Finder or with the app's own uninstaller."
+
+    /// Whether `path` is an app bundle installed in an Applications folder —
+    /// `/Applications`, `~/Applications` or any `/Users/*/Applications`, at
+    /// any depth (`/Applications/Utilities/Terminal.app`) — or anything inside
+    /// one. These are pointed out but never moved to the Trash by the app:
+    /// uninstalling is the user's job, or the app's own uninstaller's.
+    public func isInstalledApplication(_ path: String) -> Bool {
+        let components = path.split(separator: "/", omittingEmptySubsequences: true)
+        let afterApplications: ArraySlice<Substring>
+        if components.first == "Applications" {
+            afterApplications = components.dropFirst()
+        } else if components.count >= 3, components[0] == "Users", components[2] == "Applications" {
+            afterApplications = components.dropFirst(3)
+        } else {
+            let home = homeDirectory.split(separator: "/", omittingEmptySubsequences: true)
+            guard components.count > home.count, components.prefix(home.count).elementsEqual(home),
+                components[home.count] == "Applications"
+            else { return false }
+            afterApplications = components.dropFirst(home.count + 1)
+        }
+        return afterApplications.contains { NodeFilter.fileExtension(of: String($0)) == "app" }
+    }
+
     /// Resolve symlinks the way the scanner does for its root, so a home such
     /// as /var/root or a relocated ~ compares equal to graph paths.
     static func canonical(_ path: String) -> String {
@@ -312,13 +348,15 @@ extension CleanupCategory {
 }
 
 extension Recommendation {
-    /// Members that exist in the scanned tree and so can be acted on.
-    public var actionableItems: [Item] { items.filter { $0.node != nil } }
+    /// Members that exist in the scanned tree and are not locked (installed
+    /// applications), so they can be acted on.
+    public var actionableItems: [Item] { items.filter(\.isActionable) }
 
     /// Whether the guided "Fix" flow (pick members, move them to the Trash)
     /// applies. Independent of `canMoveToTrash`, which is about the primary
     /// node: a per-app cache breakdown or a duplicates group has no single
-    /// trashable node yet is exactly what Fix is for.
+    /// trashable node yet is exactly what Fix is for. A recommendation whose
+    /// every member is an installed application is advice only.
     public var isFixable: Bool { category.membersAreTrashable && !actionableItems.isEmpty }
 
     /// Members the Fix flow starts with checked: everything for a `safe`
