@@ -34,8 +34,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jdenman.macdisksleuth
         PRODUCT_NAME: MacDiskSleuth
-        MARKETING_VERSION: "0.1.0-rc6"
-        CURRENT_PROJECT_VERSION: "6"
+        MARKETING_VERSION: "0.1.0-rc7"
+        CURRENT_PROJECT_VERSION: "7"
         SWIFT_VERSION: "6.0"
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual

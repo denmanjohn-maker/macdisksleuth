@@ -66,12 +66,11 @@ struct SunburstView: View {
                     if hoveredSegmentID != segment?.id { hoveredSegmentID = segment?.id }
                     var node: NodeID?
                     if case .node(let hit) = segment?.target { node = hit }
-                    // @Published notifies on every assignment, equal or not; skip
-                    // no-op writes so mouse moves don't redraw every model observer.
-                    if model.hovered != node { model.hovered = node }
+                    // HoverState, not AppModel: only the inspector redraws.
+                    model.hover.set(node)
                 case .ended:
                     hoveredSegmentID = nil
-                    if model.hovered != nil { model.hovered = nil }
+                    model.hover.set(nil)
                 }
             }
         }
