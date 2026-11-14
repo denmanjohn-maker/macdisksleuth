@@ -7,7 +7,7 @@
 - Test: `swift test`.
 - App (macOS only): `make app` (xcodegen generate + xcodebuild), `make xcode`, `make generate`, `make clean`.
 - No linter configured; the package is the linter. Keep code Swift 6-clean (no `#if compiler(...)` fallbacks, no `@available` shims).
-- Deployment target is macOS 13 (Ventura) for the package and the app, so 2017+ Intel Macs are supported. Don't use macOS 14+ APIs: the app model is `ObservableObject` + `@Published` (not `@Observable`/`@Bindable`), views read it with `@EnvironmentObject`, `onChange(of:)` uses the one-argument closure, and `AsyncStream.makeStream` is off-limits. The compiler enforces most of this; ATTR_CMNEXT_* bits it can't — a bit the running kernel doesn't know makes getattrlist fail with EINVAL, so new ones go through `RequestedAttrs.kernelAccepts`.
+- Deployment target is macOS 13 (Ventura) for the package and the app, so 2017+ Intel Macs are supported. Don't use macOS 14+ APIs: the app model is `ObservableObject` + `@Published` (not `@Observable`/`@Bindable`), views read it with `@EnvironmentObject`, `onChange(of:)` uses the one-argument closure, `AsyncStream.makeStream` is off-limits, and the app comes forward via `NSApp.bringToFront()` (not the macOS 14 `NSApp.activate()`). The compiler enforces most of this; ATTR_CMNEXT_* bits it can't — a bit the running kernel doesn't know makes getattrlist fail with EINVAL, so new ones go through `RequestedAttrs.kernelAccepts`.
 - CI (`.github/workflows/ci.yml`) runs `swift build` + `swift test` on `macos-15`, `macos-latest`, and Intel (`macos-15-intel`, plus x86_64 under Rosetta), and checks the app binary is universal with a macOS 13 minimum.
 
 ## What this repo is

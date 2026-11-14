@@ -37,7 +37,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse
     ) async {
         await MainActor.run {
-            NSApp.activate()
+            NSApp.bringToFront()
             if AppModel.shared.graph != nil {
                 AppModel.shared.showRecommendations = true
             }

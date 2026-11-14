@@ -43,8 +43,17 @@ jobs:
         run: /usr/bin/pgrep -q oahd || sudo softwareupdate --install-rosetta --agree-to-license
       - name: Build
         run: swift build --arch ${{ matrix.arch }}
+      # Run the whole toolchain as x86_64 (under Rosetta on Apple Silicon):
+      # SwiftPM's native arm64 test runner can't load an x86_64 test bundle.
       - name: Test
-        run: swift test --arch ${{ matrix.arch }}
+        run: arch -x86_64 swift test --arch ${{ matrix.arch }}
+      - name: Smoke-test the x86_64 CLI
+        run: |
+          cli=$(swift build --arch ${{ matrix.arch }} --show-bin-path)/macdisksleuth
+          lipo -info "$cli"
+          arch -x86_64 "$cli" --help > /dev/null
+          arch -x86_64 "$cli" info "$PWD/Package.swift"
+          arch -x86_64 "$cli" scan "$PWD/Sources" --top 3
 
   app:
     name: Build app

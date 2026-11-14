@@ -303,7 +303,7 @@ final class AppModel: ObservableObject {
     /// exists and no scene has handed us `openWindow` yet (cold launch).
     @discardableResult
     func showResultsWindow() -> Bool {
-        NSApp.activate()
+        NSApp.bringToFront()
         if let window = NSApp.windows.first(where: { $0.canBecomeMain && Self.isResultsWindow($0) }) {
             window.makeKeyAndOrderFront(nil)
             return true
@@ -465,4 +465,16 @@ private struct TrashOutcome: Sendable {
 
 func errnoString2(_ code: Int32) -> String {
     String(cString: strerror(code))
+}
+
+extension NSApplication {
+    /// Bring the app forward. `activate()` is macOS 14+; on Ventura fall back
+    /// to `activate(ignoringOtherApps:)`, which Sonoma deprecated but kept.
+    func bringToFront() {
+        if #available(macOS 14, *) {
+            activate()
+        } else {
+            activate(ignoringOtherApps: true)
+        }
+    }
 }
