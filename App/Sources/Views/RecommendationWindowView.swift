@@ -5,7 +5,7 @@ import SwiftUI
 /// recommendation up by id on every render, so it follows recomputes and
 /// says so when the recommendation no longer applies.
 struct RecommendationWindowView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openWindow) private var openWindow
@@ -27,7 +27,7 @@ struct RecommendationWindowView: View {
             if let recommendation {
                 RecommendationDetailView(recommendation: recommendation) { fixing = $0 }
                     .onAppear { lastTitle = recommendation.title }
-                    .onChange(of: recommendation.title) { _, newTitle in lastTitle = newTitle }
+                    .onChange(of: recommendation.title) { newTitle in lastTitle = newTitle }
             } else if model.graph == nil {
                 placeholder(
                     symbol: "internaldrive", title: "No scan loaded",
@@ -55,7 +55,7 @@ struct RecommendationWindowView: View {
         .frame(minWidth: 540, minHeight: 420)
         .sheet(item: $fixing) { target in
             FixRecommendationView(recommendation: target, scanGeneration: model.scanGeneration)
-                .environment(model)
+                .environmentObject(model)
                 .environment(\.typography, type)
         }
         .onAppear { model.openWindow = openWindow }
@@ -83,7 +83,7 @@ struct RecommendationWindowView: View {
 /// The large-format recommendation: everything the card shows, every member
 /// listed, and the full set of actions.
 struct RecommendationDetailView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
     var recommendation: Recommendation
     /// Asks the window to present the Fix sheet for this recommendation.

@@ -27,12 +27,43 @@ enum RequestedAttrs {
         | attrBit(ATTR_FILE_ALLOCSIZE)
         | attrBit(ATTR_FILE_DATALENGTH)
 
-    /// With FSOPT_ATTR_CMN_EXTENDED set, the forkattr slot selects ATTR_CMNEXT_* attributes.
-    static let fork: attrgroup_t =
+    /// ATTR_CMNEXT_* attributes every supported macOS (13+) understands.
+    static let baseFork: attrgroup_t =
         attrBit(ATTR_CMNEXT_PRIVATESIZE)
         | attrBit(ATTR_CMNEXT_CLONEID)
         | attrBit(ATTR_CMNEXT_EXT_FLAGS)
-        | attrBit(ATTR_CMNEXT_CLONE_REFCNT)
+
+    /// With FSOPT_ATTR_CMN_EXTENDED set, the forkattr slot selects ATTR_CMNEXT_* attributes.
+    ///
+    /// ATTR_CMNEXT_CLONE_REFCNT is newer than macOS 13. A kernel that doesn't
+    /// know a requested bit rejects the WHOLE request with EINVAL — which would
+    /// push every directory onto the slow readdir fallback with no APFS
+    /// attributes at all. So ask the running kernel once and include the bit
+    /// only if it is accepted. Without it, clone families are never assumed
+    /// complete (freeable stays conservative and is flagged as shared).
+    static let fork: attrgroup_t = {
+        let withRefcount = baseFork | attrBit(ATTR_CMNEXT_CLONE_REFCNT)
+        return kernelAccepts(forkattr: withRefcount) ? withRefcount : baseFork
+    }()
+
+    /// Whether getattrlist accepts `forkattr` (as ATTR_CMNEXT_*) on "/".
+    /// Only EINVAL means "unknown attribute"; any other outcome keeps the bits,
+    /// since unsupported-but-known attributes are simply not returned.
+    static func kernelAccepts(forkattr: attrgroup_t) -> Bool {
+        var list = attrlist()
+        list.bitmapcount = u_short(ATTR_BIT_MAP_COUNT)
+        list.commonattr = attrBit(ATTR_CMN_RETURNED_ATTRS)
+        list.forkattr = forkattr
+        let bufferSize = 256
+        let buffer = UnsafeMutableRawPointer.allocate(byteCount: bufferSize, alignment: 8)
+        defer { buffer.deallocate() }
+        while true {
+            if getattrlist("/", &list, buffer, bufferSize, FSOptions.attrCmnExtended) == 0 { return true }
+            let code = errno
+            if code == EINTR { continue }
+            return code != EINVAL
+        }
+    }
 
     static func makeList() -> attrlist {
         var list = attrlist()

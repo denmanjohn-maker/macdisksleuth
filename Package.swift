@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "macdisksleuth",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v13)],
     products: [
         .library(name: "MacDiskSleuthKit", targets: ["MacDiskSleuthKit"]),
         .executable(name: "macdisksleuth", targets: ["macdisksleuth"]),

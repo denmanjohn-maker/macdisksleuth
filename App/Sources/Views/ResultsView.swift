@@ -2,11 +2,10 @@ import MacDiskSleuthKit
 import SwiftUI
 
 struct ResultsView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
 
     var body: some View {
-        @Bindable var model = model
         Group {
             if model.atOverview {
                 DiskOverviewView()
@@ -62,7 +61,7 @@ struct ResultsView: View {
         }
         .sheet(isPresented: $model.showRecommendations) {
             RecommendationsSheet()
-                .environment(model)
+                .environmentObject(model)
                 .environment(\.typography, type)
         }
         .safeAreaInset(edge: .bottom) { StatusBar() }
@@ -70,7 +69,7 @@ struct ResultsView: View {
 }
 
 struct BreadcrumbBar: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
 
     var body: some View {
@@ -115,10 +114,9 @@ struct BreadcrumbBar: View {
 }
 
 struct TreeListView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        @Bindable var model = model
         let rows = listRows()
         List(selection: $model.selection) {
             ForEach(rows) { row in
@@ -171,7 +169,7 @@ struct TreeRowData: Identifiable {
 }
 
 struct TreeRow: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
     var row: TreeRowData
 
@@ -235,7 +233,7 @@ struct TreeRow: View {
 }
 
 struct StatusBar: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
 
     var body: some View {

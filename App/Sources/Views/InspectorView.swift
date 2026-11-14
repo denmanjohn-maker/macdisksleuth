@@ -2,7 +2,7 @@ import MacDiskSleuthKit
 import SwiftUI
 
 struct InspectorView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
     @State private var confirmingDelete = false
     @State private var deleteError: String?

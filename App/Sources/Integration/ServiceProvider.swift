@@ -42,7 +42,7 @@ final class ServiceProvider: NSObject {
         guard retries > 0 else {
             // Window identifiers are an undocumented convention; as a last
             // resort take any window that is not a recommendation window.
-            NSApp.activate()
+            NSApp.bringToFront()
             if let window = NSApp.windows.first(where: { $0.canBecomeMain && !AppModel.isRecommendationWindow($0) }) {
                 window.makeKeyAndOrderFront(nil)
             }

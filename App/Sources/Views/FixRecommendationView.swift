@@ -6,7 +6,7 @@ import SwiftUI
 /// from a member snapshot, so a recompute underneath never changes what the
 /// user is looking at.
 struct FixRecommendationView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
     @Environment(\.dismiss) private var dismiss
 

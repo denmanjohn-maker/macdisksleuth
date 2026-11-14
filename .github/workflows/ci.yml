@@ -22,6 +22,39 @@ jobs:
       - name: Test
         run: swift test
 
+  intel:
+    name: Build & test (Intel x86_64)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Native Intel hardware.
+          - os: macos-15-intel
+            arch: x86_64
+          # x86_64 slice on Apple Silicon under Rosetta 2 — the same code path
+          # the universal release binary takes on an Intel Mac.
+          - os: macos-15
+            arch: x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure Rosetta
+        if: matrix.os == 'macos-15'
+        run: /usr/bin/pgrep -q oahd || sudo softwareupdate --install-rosetta --agree-to-license
+      - name: Build
+        run: swift build --arch ${{ matrix.arch }}
+      # Run the whole toolchain as x86_64 (under Rosetta on Apple Silicon):
+      # SwiftPM's native arm64 test runner can't load an x86_64 test bundle.
+      - name: Test
+        run: arch -x86_64 swift test --arch ${{ matrix.arch }}
+      - name: Smoke-test the x86_64 CLI
+        run: |
+          cli=$(swift build --arch ${{ matrix.arch }} --show-bin-path)/macdisksleuth
+          lipo -info "$cli"
+          arch -x86_64 "$cli" --help > /dev/null
+          arch -x86_64 "$cli" info "$PWD/Package.swift"
+          arch -x86_64 "$cli" scan "$PWD/Sources" --top 3
+
   app:
     name: Build app
     # macos-15 is the Release workflow's runner; building there too catches
@@ -38,4 +71,8 @@ jobs:
       - name: Generate project
         run: xcodegen generate --spec App/project.yml --project App
       - name: Build
-        run: xcodebuild -project App/MacDiskSleuth.xcodeproj -scheme MacDiskSleuth -configuration Release build CODE_SIGNING_ALLOWED=NO
+        run: |
+          xcodebuild -project App/MacDiskSleuth.xcodeproj -scheme MacDiskSleuth -configuration Release \
+            -derivedDataPath build ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO build CODE_SIGNING_ALLOWED=NO
+      - name: Check universal binary and macOS 13 minimum
+        run: scripts/check-binary.sh build/Build/Products/Release/MacDiskSleuth.app/Contents/MacOS/MacDiskSleuth

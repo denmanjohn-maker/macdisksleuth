@@ -35,7 +35,7 @@ public struct RawEntry: Sendable {
     public var cloneID: UInt64 = 0
     /// ATTR_CMNEXT_EXT_FLAGS; 0 if not returned.
     public var extFlags: UInt64 = 0
-    /// ATTR_CMNEXT_CLONE_REFCNT (macOS 14+); 0 if not returned.
+    /// ATTR_CMNEXT_CLONE_REFCNT (newer kernels only, see RequestedAttrs.fork); 0 if not returned.
     public var cloneRefcnt: UInt32 = 0
     public var returned = ReturnedGroups()
 
