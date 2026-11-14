@@ -2,7 +2,7 @@ import MacDiskSleuthKit
 import SwiftUI
 
 struct WelcomeView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
 
     var body: some View {
@@ -152,7 +152,7 @@ struct CapacityBar: View {
 }
 
 struct ScanProgressView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
 
     var body: some View {

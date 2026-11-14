@@ -67,7 +67,11 @@ Built on `getattrlistbulk` with APFS extended attributes (`PRIVATESIZE`, `CLONEI
 
 ## Install
 
-Requires macOS 14+.
+Runs on macOS 13 (Ventura) or later, on Apple Silicon and Intel Macs — release downloads are universal binaries. That covers Intel Macs from 2017 on (MacBook Pro/iMac 2017+, MacBook Air 2018+, Mac mini 2018+, iMac Pro, Mac Pro 2019).
+
+Building from source needs Swift 6 (Xcode 16, which itself requires macOS 14.5+). On a Ventura Mac, use the prebuilt release instead.
+
+If the running macOS doesn't report APFS clone reference counts (they arrived after Ventura), MacDiskSleuth can't prove a clone family is wholly inside a folder. Freeable figures stay conservative there: shared clone bytes are flagged as shared rather than counted as freeable.
 
 ```sh
 git clone https://github.com/denmanjohn-maker/macdisksleuth.git

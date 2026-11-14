@@ -1,11 +1,9 @@
 import AppKit
 import MacDiskSleuthKit
-import Observation
 import SwiftUI
 
 @MainActor
-@Observable
-final class AppModel {
+final class AppModel: ObservableObject {
     /// The one model, shared by the SwiftUI scene and the Services provider
     /// (a Finder Quick Action can arrive before any view exists).
     static let shared = AppModel()
@@ -16,36 +14,36 @@ final class AppModel {
         case results
     }
 
-    var phase: Phase = .welcome
-    var progress = ScanProgress.zero
-    var graph: FileGraph?
-    var volume: VolumeIdentity?
-    var scanError: String?
+    @Published var phase: Phase = .welcome
+    @Published var progress = ScanProgress.zero
+    @Published var graph: FileGraph?
+    @Published var volume: VolumeIdentity?
+    @Published var scanError: String?
     /// "Top things to delete" for the current graph; nil while being computed.
-    var recommendations: RecommendationReport?
+    @Published var recommendations: RecommendationReport?
     /// The context the current recommendations were computed with (paths display relative to it).
-    var recommendationContext = RecommendationContext()
+    @Published var recommendationContext = RecommendationContext()
     /// Whether the recommendations sheet is showing over the results.
-    var showRecommendations = false
+    @Published var showRecommendations = false
     /// Post a macOS notification with the top finds when a scan completes. Persisted.
-    var notifyOnScanComplete: Bool = UserDefaults.standard.object(forKey: "notifyOnScanComplete") as? Bool ?? true {
+    @Published var notifyOnScanComplete: Bool = UserDefaults.standard.object(forKey: "notifyOnScanComplete") as? Bool ?? true {
         didSet { UserDefaults.standard.set(notifyOnScanComplete, forKey: "notifyOnScanComplete") }
     }
     /// Bumped whenever `graph` is replaced (fresh scan, deletion) so views
     /// with cached derived layout know to recompute.
-    var graphStamp = 0
+    @Published var graphStamp = 0
 
-    var lens: SizeLens = .physical
-    var focus = NodeID(raw: 0)
-    var selection: NodeID?
-    var hovered: NodeID?
+    @Published var lens: SizeLens = .physical
+    @Published var focus = NodeID(raw: 0)
+    @Published var selection: NodeID?
+    @Published var hovered: NodeID?
     /// Results open on the volume-level view (total vs used); drilling in
     /// enters the folder sunburst, and going up from the scan root returns here.
-    var atOverview = true
+    @Published var atOverview = true
 
     /// User-set text scale, persisted. 1.0 = stock macOS sizes; the default
     /// leans larger on purpose.
-    var textScale: Double = AppModel.loadTextScale() {
+    @Published var textScale: Double = AppModel.loadTextScale() {
         didSet {
             let clamped = min(max(textScale, Self.minTextScale), Self.maxTextScale)
             if clamped != textScale {
@@ -69,16 +67,16 @@ final class AppModel {
     func resetTextSize() { textScale = 1.2 }
 
     // Sidebar facts, refreshed on launch and after scans.
-    var fdaStatus: FDAStatus = .unknown
-    var capacities: VolumeCapacities?
-    var snapshots: [SnapshotInfo] = []
-    var scannedPath: String = ""
+    @Published var fdaStatus: FDAStatus = .unknown
+    @Published var capacities: VolumeCapacities?
+    @Published var snapshots: [SnapshotInfo] = []
+    @Published var scannedPath: String = ""
 
     private var session: ScanSession?
     /// Guards against a cancelled scan's late result clobbering a newer one.
     /// Views that snapshot NodeIDs (the Fix sheet) pin them to this value:
     /// ids stay valid across edits of one scan, never across a rescan.
-    private(set) var scanGeneration = 0
+    @Published private(set) var scanGeneration = 0
 
     /// SwiftUI's window opener, captured by whichever scene appears first, so
     /// AppKit-side code (the Finder Quick Action) can reopen the results window.

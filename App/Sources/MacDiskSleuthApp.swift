@@ -3,7 +3,7 @@ import SwiftUI
 @main
 struct MacDiskSleuthApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var model = AppModel.shared
+    @ObservedObject private var model = AppModel.shared
 
     /// Scene id of the results window; `openWindow(id:)` reopens it and
     /// `NSWindow.identifier` starts with it.
@@ -15,7 +15,7 @@ struct MacDiskSleuthApp: App {
         // First so File › New Window (⌘N) still means the results window.
         WindowGroup(id: Self.mainWindowID) {
             RootView()
-                .environment(model)
+                .environmentObject(model)
                 .environment(\.typography, Typography(scale: model.textScale))
                 .environment(\.font, .system(size: 13 * model.textScale))
                 .frame(minWidth: 900, minHeight: 560)
@@ -60,7 +60,7 @@ struct MacDiskSleuthApp: App {
         // macOS restores the window at relaunch; the view shows an empty state.
         WindowGroup("Recommendation", id: Self.recommendationWindowID, for: String.self) { $recommendationID in
             RecommendationWindowView(recommendationID: recommendationID)
-                .environment(model)
+                .environmentObject(model)
                 .environment(\.typography, Typography(scale: model.textScale))
                 .environment(\.font, .system(size: 13 * model.textScale))
         }
@@ -68,16 +68,15 @@ struct MacDiskSleuthApp: App {
 
         Settings {
             SettingsView()
-                .environment(model)
+                .environmentObject(model)
         }
     }
 }
 
 struct SettingsView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        @Bindable var model = model
         Form {
             VStack(alignment: .leading, spacing: 8) {
                 Slider(
@@ -110,7 +109,7 @@ struct SettingsView: View {
 }
 
 struct RootView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {

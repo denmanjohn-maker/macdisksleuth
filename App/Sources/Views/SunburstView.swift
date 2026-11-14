@@ -2,7 +2,7 @@ import MacDiskSleuthKit
 import SwiftUI
 
 struct SunburstView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.typography) private var type
 
@@ -63,15 +63,15 @@ struct SunburstView: View {
                     let segment = segmentAt(
                         location, center: center, centerRadius: centerRadius,
                         ringThickness: ringThickness)
-                    hoveredSegmentID = segment?.id
-                    if case .node(let node) = segment?.target {
-                        model.hovered = node
-                    } else {
-                        model.hovered = nil
-                    }
+                    if hoveredSegmentID != segment?.id { hoveredSegmentID = segment?.id }
+                    var node: NodeID?
+                    if case .node(let hit) = segment?.target { node = hit }
+                    // @Published notifies on every assignment, equal or not; skip
+                    // no-op writes so mouse moves don't redraw every model observer.
+                    if model.hovered != node { model.hovered = node }
                 case .ended:
                     hoveredSegmentID = nil
-                    model.hovered = nil
+                    if model.hovered != nil { model.hovered = nil }
                 }
             }
         }

@@ -3,7 +3,7 @@ import SwiftUI
 
 /// "Top 5 things to delete" — the first thing to read after a scan.
 struct RecommendationsView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
     /// The Fix sheet is presented from here, not from a card: a card can vanish
     /// when the list recomputes after the deletion, and the summary must outlive it.
@@ -54,7 +54,7 @@ struct RecommendationsView: View {
         .padding(14)
         .sheet(item: $fixing) { target in
             FixRecommendationView(recommendation: target, scanGeneration: model.scanGeneration)
-                .environment(model)
+                .environmentObject(model)
                 .environment(\.typography, type)
         }
     }
@@ -75,7 +75,7 @@ struct RecommendationsView: View {
 }
 
 struct RecommendationCard: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
     @Environment(\.openWindow) private var openWindow
     var recommendation: Recommendation
@@ -314,11 +314,10 @@ struct VolumeAdviceCard: View {
 
 /// The toolbar / menu entry point: the same list in a sheet.
 struct RecommendationsSheet: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
 
     var body: some View {
-        @Bindable var model = model
         VStack(spacing: 0) {
             RecommendationsView()
             Divider()

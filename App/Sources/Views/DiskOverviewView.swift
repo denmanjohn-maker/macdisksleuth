@@ -6,7 +6,7 @@ import SwiftUI
 /// Clicking the ring (or the button) drills into the scanned folder.
 /// The donut sizes itself to the window.
 struct DiskOverviewView: View {
-    @Environment(AppModel.self) private var model
+    @EnvironmentObject private var model: AppModel
     @Environment(\.typography) private var type
     @State private var hoveringRing = false
 

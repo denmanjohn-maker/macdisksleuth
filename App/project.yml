@@ -2,7 +2,7 @@ name: MacDiskSleuth
 options:
   bundleIdPrefix: com.jdenman
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "13.0"
   createIntermediateGroups: true
 packages:
   macdisksleuth:

@@ -77,7 +77,11 @@ public enum ScanEngine {
             allowedDevices: allowedDevices, firmlinkTargets: firmlinkTargets,
             isRootScan: isRootScan, options: options)
 
-        let (progressStream, progressContinuation) = AsyncStream.makeStream(of: ScanProgress.self)
+        // AsyncStream.makeStream(of:) is macOS 14+; capture the continuation by hand
+        // so the engine still runs on macOS 13. The build closure runs synchronously.
+        var capturedContinuation: AsyncStream<ScanProgress>.Continuation!
+        let progressStream = AsyncStream<ScanProgress> { capturedContinuation = $0 }
+        let progressContinuation: AsyncStream<ScanProgress>.Continuation = capturedContinuation
 
         let resultTask = Task<ScanResult, Error> {
             let start = ContinuousClock.now
