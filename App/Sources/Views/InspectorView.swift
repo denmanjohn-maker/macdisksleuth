@@ -3,12 +3,15 @@ import SwiftUI
 
 struct InspectorView: View {
     @EnvironmentObject private var model: AppModel
+    /// Passed in, not read from the environment: the inspector is the one view
+    /// that redraws on hover (see `AppModel.hover`).
+    @ObservedObject var hover: HoverState
     @Environment(\.typography) private var type
     @State private var confirmingDelete = false
     @State private var deleteError: String?
 
     private var subject: NodeID? {
-        model.hovered ?? model.selection ?? (model.graph != nil ? model.focus : nil)
+        hover.node ?? model.selection ?? (model.graph != nil ? model.focus : nil)
     }
 
     var body: some View {

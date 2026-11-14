@@ -22,7 +22,7 @@ struct ResultsView: View {
                     }
                     .frame(minWidth: 320, maxWidth: .infinity)
 
-                    InspectorView()
+                    InspectorView(hover: model.hover)
                         .frame(minWidth: 260, maxWidth: 320)
                 }
             }

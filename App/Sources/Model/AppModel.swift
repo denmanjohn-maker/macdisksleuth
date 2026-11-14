@@ -36,7 +36,11 @@ final class AppModel: ObservableObject {
     @Published var lens: SizeLens = .physical
     @Published var focus = NodeID(raw: 0)
     @Published var selection: NodeID?
-    @Published var hovered: NodeID?
+    /// The node under the pointer in the sunburst. Kept out of the published
+    /// state on purpose: every @Published change invalidates every view that
+    /// reads the model, and hover changes on each segment crossing. Only the
+    /// inspector observes it, through `HoverState`.
+    let hover = HoverState()
     /// Results open on the volume-level view (total vs used); drilling in
     /// enters the folder sunburst, and going up from the scan root returns here.
     @Published var atOverview = true
@@ -243,7 +247,7 @@ final class AppModel: ObservableObject {
     func goToOverview() {
         atOverview = true
         selection = nil
-        hovered = nil
+        hover.set(nil)
     }
 
     func up() {
@@ -274,7 +278,7 @@ final class AppModel: ObservableObject {
         atOverview = false
         focus = graph.parent(of: node) ?? graph.root
         selection = node
-        hovered = nil
+        hover.set(nil)
     }
 
     /// Root-to-focus path for the breadcrumb bar.
@@ -347,7 +351,7 @@ final class AppModel: ObservableObject {
         self.graph = graph.removing(node)
         graphStamp += 1
         if selection == node { selection = nil }
-        if hovered == node { hovered = nil }
+        if hover.node == node { hover.set(nil) }
         refreshRecommendations()
         return nil
     }
@@ -418,7 +422,7 @@ final class AppModel: ObservableObject {
         self.graph = current.removing(all: trashedNow)
         graphStamp += 1
         if let selection, trashedNow.contains(selection) { self.selection = nil }
-        if let hovered, trashedNow.contains(hovered) { self.hovered = nil }
+        if let hovered = hover.node, trashedNow.contains(hovered) { hover.set(nil) }
         refreshRecommendations()
         return result
     }
@@ -476,5 +480,17 @@ extension NSApplication {
         } else {
             activate(ignoringOtherApps: true)
         }
+    }
+}
+
+/// Hover state for the sunburst, observed separately from `AppModel` so a
+/// pointer move redraws only the views that show the hovered item.
+@MainActor
+final class HoverState: ObservableObject {
+    @Published private(set) var node: NodeID?
+
+    /// Publishes only on a real change: @Published notifies on every assignment.
+    func set(_ newValue: NodeID?) {
+        if node != newValue { node = newValue }
     }
 }
